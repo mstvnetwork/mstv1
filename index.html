@@ -1,19 +1,202 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My GitHub HTML Player</title>
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-N37CYQM7PE"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-N37CYQM7PE'); // Your Measurement ID goes here
-    </script>
-
+  <meta charset="UTF-8" />
+  <title>Global Sync YouTube Player</title>
+  <style>
+    html, body {
+      margin: 0;
+      background: black;
+      color: white;
+      font-family: sans-serif;
+      overflow: hidden;
+    }
+    #player, #overlay {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+    }
+    #overlay {
+      z-index: 9;
+      background: black;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+    }
+    #spinner {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid gold;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      left: 50%;
+      top: 50%;
+      margin: -25px 0 0 -25px;
+      z-index: 8;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #banner {
+      position: absolute;
+      width: 100%;
+      background: #007bff;
+      color: white;
+      padding: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      box-sizing: border-box;
+      font-size: 16px;
+    }
+    #banner span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: scroll-left 15s linear infinite;
+    }
+    @keyframes scroll-left {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    #muteToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      z-index: 10;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    </body>
+  <div id="player"></div>
+  <div id="overlay" style="display:none">📺 Tap to Watch Live</div>
+  <div id="spinner"></div>
+  <div id="banner"><span></span></div>
+  <div id="muteToggle">🔇</div>
+
+  <script>
+    const channel = new URLSearchParams(location.search).get("ch") || "1";
+    const jsonURL = `sync-ch=${channel}.json`;
+    const overlay = document.getElementById("overlay");
+    const spinner = document.getElementById("spinner");
+    const bannerSpan = document.querySelector("#banner span");
+    const muteToggle = document.getElementById("muteToggle");
+
+    let videoList = [], globalStart = 0, currentIndex = 0;
+    let player, isMuted = true, failSafeTimeout;
+    const isAndroid = /Android/i.test(navigator.userAgent);
+
+    fetch(jsonURL).then(res => res.json()).then(data => {
+      videoList = data.video_list;
+      globalStart = Date.parse(data.start_time_utc);
+      initPlayer();
+    });
+
+    function initPlayer() {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.body.appendChild(tag);
+    }
+
+    function getCurrentVideoIndexAndTime() {
+      const now = Date.now();
+      const elapsed = (now - globalStart) / 1000;
+      let acc = 0;
+      for (let i = 0; i < videoList.length; i++) {
+        const duration = videoList[i].duration_seconds;
+        if (elapsed < acc + duration) return [i, elapsed - acc];
+        acc += duration;
+      }
+      return [0, 0];
+    }
+
+    function onYouTubeIframeAPIReady() {
+      [currentIndex, startSeconds] = getCurrentVideoIndexAndTime();
+      const video = videoList[currentIndex];
+
+      bannerSpan.textContent = `Now Playing: ${video.title}`;
+      if (!video) return;
+
+      player = new YT.Player('player', {
+        videoId: video.id,
+        playerVars: {
+          autoplay: 1,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          start: Math.floor(startSeconds)
+        },
+        events: {
+          onReady: (event) => {
+            if (isMuted) event.target.mute();
+            else event.target.unMute();
+            event.target.playVideo();
+            setFailSafe();
+
+            // GPU bug fix
+            const iframe = document.querySelector('#player iframe');
+            if (iframe) {
+              iframe.style.transform = 'translateZ(0)';
+              iframe.style.backfaceVisibility = 'hidden';
+              iframe.style.willChange = 'transform';
+              iframe.style.backgroundColor = 'black';
+            }
+          },
+          onStateChange: (event) => {
+            if (event.data === YT.PlayerState.ENDED) {
+              currentIndex = (currentIndex + 1) % videoList.length;
+              loadVideo(currentIndex);
+            }
+          }
+        }
+      });
+    }
+
+    function loadVideo(index) {
+      clearTimeout(failSafeTimeout);
+      const video = videoList[index];
+      if (!video) return;
+      bannerSpan.textContent = `Now Playing: ${video.title}`;
+      player.loadVideoById(video.id);
+      setFailSafe();
+    }
+
+    function setFailSafe() {
+      failSafeTimeout = setTimeout(() => {
+        currentIndex = (currentIndex + 1) % videoList.length;
+        loadVideo(currentIndex);
+      }, 10000);
+    }
+
+    muteToggle.addEventListener("click", () => {
+      if (!player) return;
+      isMuted = !isMuted;
+      if (isMuted) {
+        player.mute();
+        muteToggle.textContent = "🔇";
+      } else {
+        player.unMute();
+        muteToggle.textContent = "🔊";
+      }
+    });
+
+    // Tap-to-start only on Android
+    window.onYouTubeIframeAPIReady = () => {
+      if (isAndroid) {
+        overlay.style.display = "flex";
+        overlay.onclick = () => {
+          overlay.style.display = "none";
+          onYouTubeIframeAPIReady();
+        };
+      } else {
+        onYouTubeIframeAPIReady(); // autoplay immediately
+      }
+    };
+  </script>
+</body>
 </html>
