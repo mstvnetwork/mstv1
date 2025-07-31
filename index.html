@@ -14,7 +14,7 @@
       position: relative;
       width: 100%;
       height: 0;
-      padding-bottom: 56.25%; /* 16:9 aspect ratio */
+      padding-bottom: 56.25%;
     }
     #player {
       position: absolute;
@@ -105,81 +105,86 @@
     <div id="loading-spinner"></div>
     <div id="loading-text">Stream Loading...</div>
   </div>
-<!-- Only the updated JS part is shown here for clarity -->
-<script>
-  const ch = getChannelFromUrl();
-  const jsonUrl = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch${ch}.json`;
 
-  let player;
-  let playlist = [];
-  let startTimeUTC = null;
-  let currentVideoIndex = 0;
-  let startSeconds = 0;
-  let isMuted = true;
-  let failSafeTimeout;
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  function loadYouTubeAPI() {
-    const tag = document.createElement('script');
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-  }
-
-  function updateBanner() {
-    const marquee = document.getElementById('marquee-text');
-    if (playlist.length === 0) {
-      marquee.textContent = 'No videos in playlist';
-    } else {
-      marquee.textContent = `Now Playing: ${playlist[currentVideoIndex].title}`;
+  <script>
+    function getChannelFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const ch = params.get('ch');
+      return ch ? ch : '1';
     }
-  }
 
-  function setFailSafe() {
-    clearTimeout(failSafeTimeout);
-    failSafeTimeout = setTimeout(() => {
-      console.warn("Video failed to load within 10 seconds. Skipping...");
-      currentVideoIndex = (currentVideoIndex + 1) % playlist.length;
-      startSeconds = 0;
-      player.loadVideoById({
-        videoId: playlist[currentVideoIndex].id
-      });
-      updateBanner();
-      setFailSafe();
-    }, 10000);
-  }
+    const ch = getChannelFromUrl();
+    const jsonUrl = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch${ch}.json`;
 
-  function syncAndPlay() {
-    if (!startTimeUTC || playlist.length === 0) return;
+    let player;
+    let playlist = [];
+    let startTimeUTC = null;
+    let currentVideoIndex = 0;
+    let startSeconds = 0;
+    let isMuted = true;
+    let failSafeTimeout;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-    const now = Date.now();
-    const elapsedSeconds = Math.floor((now - startTimeUTC) / 1000);
-    const totalDuration = playlist.reduce((sum, video) => sum + video.duration_seconds, 0);
-    const loopedElapsed = elapsedSeconds % totalDuration;
+    function loadYouTubeAPI() {
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
 
-    let accumulated = 0;
-    for (let i = 0; i < playlist.length; i++) {
-      if (loopedElapsed < accumulated + playlist[i].duration_seconds) {
-        currentVideoIndex = i;
-        startSeconds = loopedElapsed - accumulated;
-        break;
+    function updateBanner() {
+      const marquee = document.getElementById('marquee-text');
+      if (playlist.length === 0) {
+        marquee.textContent = 'No videos in playlist';
+      } else {
+        marquee.textContent = `Now Playing: ${playlist[currentVideoIndex].title}`;
       }
-      accumulated += playlist[i].duration_seconds;
     }
-    if (startSeconds < 0) startSeconds = 0;
 
-    updateBanner();
+    function setFailSafe() {
+      clearTimeout(failSafeTimeout);
+      failSafeTimeout = setTimeout(() => {
+        console.warn("Video failed to load within 10 seconds. Skipping...");
+        currentVideoIndex = (currentVideoIndex + 1) % playlist.length;
+        startSeconds = 0;
+        player.loadVideoById({
+          videoId: playlist[currentVideoIndex].id
+        });
+        updateBanner();
+        setFailSafe();
+      }, 10000);
+    }
 
-    const playerVars = {
-      autoplay: 1,
-      controls: 0,
-      modestbranding: 1,
-      rel: 0,
-      fs: 0,
-      mute: 1,
-      playsinline: 1 // critical for mobile
-    };
+    function syncAndPlay() {
+      if (!startTimeUTC || playlist.length === 0) return;
 
-    if (!player) {
+      const now = Date.now();
+      const elapsedSeconds = Math.floor((now - startTimeUTC) / 1000);
+      const totalDuration = playlist.reduce((sum, video) => sum + video.duration_seconds, 0);
+      const loopedElapsed = elapsedSeconds % totalDuration;
+
+      let accumulated = 0;
+      for (let i = 0; i < playlist.length; i++) {
+        if (loopedElapsed < accumulated + playlist[i].duration_seconds) {
+          currentVideoIndex = i;
+          startSeconds = loopedElapsed - accumulated;
+          break;
+        }
+        accumulated += playlist[i].duration_seconds;
+      }
+      if (startSeconds < 0) startSeconds = 0;
+
+      updateBanner();
+
+      const playerVars = {
+        autoplay: 1,
+        controls: 0,
+        modestbranding: 1,
+        rel: 0,
+        fs: 0,
+        mute: 1,
+        playsinline: 1
+      };
+
       player = new YT.Player('player', {
         height: '360',
         width: '640',
@@ -189,8 +194,20 @@
           onReady: (event) => {
             if (isMuted) event.target.mute();
             else event.target.unMute();
-            event.target.playVideo();
-            setFailSafe();
+
+            setTimeout(() => {
+              if (!isMobile) {
+                event.target.loadVideoById({
+                  videoId: playlist[currentVideoIndex].id,
+                  startSeconds
+                });
+              } else {
+                event.target.loadVideoById({
+                  videoId: playlist[currentVideoIndex].id
+                });
+              }
+              setFailSafe();
+            }, 200); // short delay for iframe stability
 
             const iframe = document.querySelector('#player iframe');
             if (iframe) {
@@ -217,74 +234,57 @@
           }
         }
       });
-    } else {
-      // Only seek if not on mobile
-      if (!isMobile) {
-        player.loadVideoById({
-          videoId: playlist[currentVideoIndex].id,
-          startSeconds
-        });
-      } else {
-        player.loadVideoById({
-          videoId: playlist[currentVideoIndex].id
-        });
+    }
+
+    async function fetchPlaylist() {
+      try {
+        const res = await fetch(jsonUrl);
+        const data = await res.json();
+        playlist = data.video_list || [];
+        startTimeUTC = new Date(data.start_time_utc).getTime();
+        loadYouTubeAPI();
+      } catch (e) {
+        console.error('Error fetching JSON:', e);
       }
-      setFailSafe();
     }
-  }
 
-  async function fetchPlaylist() {
-    try {
-      const res = await fetch(jsonUrl);
-      const data = await res.json();
-      playlist = data.video_list || [];
-      startTimeUTC = new Date(data.start_time_utc).getTime();
-      loadYouTubeAPI();
-    } catch (e) {
-      console.error('Error fetching JSON:', e);
-    }
-  }
+    const muteToggle = document.getElementById('mute-toggle');
+    const muteKey = 'ytPlayerMuted';
 
-  const muteToggle = document.getElementById('mute-toggle');
-  const muteKey = 'ytPlayerMuted';
-
-  if (sessionStorage.getItem(muteKey) === 'false') {
-    isMuted = false;
-    muteToggle.textContent = '🔊';
-  } else {
-    isMuted = true;
-    muteToggle.textContent = '🔇';
-  }
-
-  muteToggle.addEventListener('click', () => {
-    if (!player) return;
-    if (isMuted) {
-      player.unMute();
+    if (sessionStorage.getItem(muteKey) === 'false') {
       isMuted = false;
       muteToggle.textContent = '🔊';
-      sessionStorage.setItem(muteKey, 'false');
     } else {
-      player.mute();
       isMuted = true;
       muteToggle.textContent = '🔇';
-      sessionStorage.setItem(muteKey, 'true');
     }
-  });
 
-  window.onYouTubeIframeAPIReady = () => {
-    syncAndPlay();
-
-    setInterval(() => {
-      if (!player || player.getPlayerState() !== YT.PlayerState.PLAYING) {
-        console.log("Re-syncing because player not playing...");
-        syncAndPlay();
+    muteToggle.addEventListener('click', () => {
+      if (!player) return;
+      if (isMuted) {
+        player.unMute();
+        isMuted = false;
+        muteToggle.textContent = '🔊';
+        sessionStorage.setItem(muteKey, 'false');
+      } else {
+        player.mute();
+        isMuted = true;
+        muteToggle.textContent = '🔇';
+        sessionStorage.setItem(muteKey, 'true');
       }
-    }, 30000);
-  };
+    });
 
-  fetchPlaylist();
-</script>
+    window.onYouTubeIframeAPIReady = () => {
+      syncAndPlay();
+      setInterval(() => {
+        if (!player || player.getPlayerState() !== YT.PlayerState.PLAYING) {
+          console.log("Re-syncing because player not playing...");
+          syncAndPlay();
+        }
+      }, 30000);
+    };
+
+    fetchPlaylist();
+  </script>
 </body>
 </html>
-
-  
