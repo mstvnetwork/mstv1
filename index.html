@@ -106,120 +106,131 @@
   </div>
   <div id="banner"><span></span></div>
 
-  <script>
-    const ch = new URLSearchParams(location.search).get("ch") || "1";
-    const playlistURL = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch${ch}.json`;
-    const container = document.getElementById("player-container");
-    const banner = document.querySelector("#banner span");
-    const spinner = document.getElementById("spinner");
-    const muteBtn = document.getElementById("mute-toggle");
-    const warning = document.getElementById("warning");
+<!-- Keep rest of your HTML + CSS same -->
 
-    const problematicAgents = [
-      "SamsungBrowser", "FBAN", "FBAV", "Instagram", "Twitter",
-      "MiuiBrowser", "Silk", "Opera Mini"
-    ];
+<script>
+  const ch = new URLSearchParams(location.search).get("ch") || "1";
+  const playlistURL = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch${ch}.json`;
+  const container = document.getElementById("player-container");
+  const banner = document.querySelector("#banner span");
+  const spinner = document.getElementById("spinner");
+  const muteBtn = document.getElementById("mute-toggle");
+  const warning = document.getElementById("warning");
 
-    const isBadBrowser = problematicAgents.some(agent =>
-      navigator.userAgent.includes(agent)
-    );
+  let player;
+  let playlist = [];
+  let currentIndex = 0;
+  let isMuted = true;
 
-    if (isBadBrowser) {
-      warning.style.display = "block";
-      warning.innerText = "⚠️ Your browser does not support embedded YouTube playback. Click below to watch directly on YouTube.";
-      spinner.remove();
-      muteBtn.remove();
-      const btn = document.createElement("button");
-      btn.id = "watch-btn";
-      btn.innerText = "Watch on YouTube";
-      btn.onclick = () => window.open("https://www.youtube.com", "_blank");
-      container.appendChild(btn);
-      banner.textContent = "YouTube player not supported on this browser.";
-    } else {
-      let playlist = [];
-      let isMuted = true;
-      let currentIndex = 0;
+  // Load YouTube Iframe API
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.body.appendChild(tag);
 
-      muteBtn.onclick = () => {
-        isMuted = !isMuted;
-        muteBtn.textContent = isMuted ? "🔇" : "🔊";
-        loadCurrentVideo(); // reload current with new mute
-      };
+  muteBtn.onclick = () => {
+    if (!player) return;
+    isMuted = !isMuted;
+    muteBtn.textContent = isMuted ? "🔇" : "🔊";
+    isMuted ? player.mute() : player.unMute();
+  };
 
-      fetch(playlistURL)
-        .then(res => res.json())
-        .then(data => {
-          playlist = data.video_list;
-          const startTimeUTC = new Date(data.start_time_utc).getTime();
-          startSyncLoop(startTimeUTC);
-        })
-        .catch(err => {
-          spinner.remove();
-          warning.style.display = "block";
-          warning.innerText = "⚠️ Error loading playlist.";
-        });
+  const isBadBrowser = [
+    "SamsungBrowser", "FBAN", "FBAV", "Instagram", "Twitter",
+    "MiuiBrowser", "Silk", "Opera Mini"
+  ].some(agent => navigator.userAgent.includes(agent));
 
-      function startSyncLoop(startTimeUTC) {
-        function syncAndPlay() {
-          const nowUTC = Date.now();
-          let elapsed = Math.floor((nowUTC - startTimeUTC) / 1000);
+  if (isBadBrowser) {
+    warning.style.display = "block";
+    warning.innerText = "⚠️ Your browser does not support embedded YouTube playback.";
+    spinner.remove();
+    muteBtn.remove();
+    const btn = document.createElement("button");
+    btn.id = "watch-btn";
+    btn.innerText = "Watch on YouTube";
+    btn.onclick = () => window.open("https://www.youtube.com", "_blank");
+    container.appendChild(btn);
+    banner.textContent = "YouTube player not supported on this browser.";
+  }
 
-          let total = 0;
-          let found = false;
-          for (let i = 0; i < playlist.length; i++) {
-            const vid = playlist[i];
-            if (total + vid.duration_seconds > elapsed) {
-              currentIndex = i;
-              const offset = elapsed - total;
-              loadVideo(vid.id, offset, vid.title);
-              found = true;
-              break;
-            }
-            total += vid.duration_seconds;
-          }
+  let startTimeUTC = 0;
 
-          if (!found && playlist.length > 0) {
-            // loop back if total time exceeded
-            elapsed %= playlist.reduce((a, b) => a + b.duration_seconds, 0);
-            startSyncLoop(startTimeUTC); // retry with looped time
-          }
-        }
+  function onYouTubeIframeAPIReady() {
+    fetch(playlistURL)
+      .then(res => res.json())
+      .then(data => {
+        playlist = data.video_list;
+        startTimeUTC = new Date(data.start_time_utc).getTime();
+        syncAndLoad();
+      })
+      .catch(() => {
+        warning.style.display = "block";
+        warning.innerText = "⚠️ Failed to load playlist.";
+        spinner.remove();
+      });
+  }
 
-        syncAndPlay();
+  function syncAndLoad() {
+    const now = Date.now();
+    let elapsed = Math.floor((now - startTimeUTC) / 1000);
+    const totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
+    elapsed %= totalDuration;
+
+    let total = 0;
+    for (let i = 0; i < playlist.length; i++) {
+      const video = playlist[i];
+      if (total + video.duration_seconds > elapsed) {
+        currentIndex = i;
+        const offset = elapsed - total;
+        loadVideo(video.id, offset, video.title);
+        break;
       }
-
-      function loadVideo(videoId, offset = 0, title = "") {
-        spinner.style.display = "block";
-        container.querySelector("iframe")?.remove();
-
-        const next = playlist[(currentIndex + 1) % playlist.length];
-        const muteParam = isMuted ? 1 : 0;
-        const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${muteParam}&start=${offset}&controls=0&modestbranding=1&rel=0&fs=0`;
-
-        const iframe = document.createElement("iframe");
-        iframe.src = src;
-        iframe.allow = "autoplay; encrypted-media";
-        iframe.onload = () => spinner.style.display = "none";
-        iframe.onerror = () => {
-          console.warn("Retrying failed load...");
-          setTimeout(() => loadVideo(videoId, offset, title), 3000);
-        };
-        container.appendChild(iframe);
-        banner.textContent = `Now Playing: ${title} | Next: ${next.title}`;
-
-        const currentDuration = playlist[currentIndex].duration_seconds;
-        setTimeout(() => {
-          currentIndex = (currentIndex + 1) % playlist.length;
-          const nextVid = playlist[currentIndex];
-          loadVideo(nextVid.id, 0, nextVid.title);
-        }, (currentDuration - offset) * 1000);
-      }
-
-      function loadCurrentVideo() {
-        const startTimeUTC = new Date().getTime() - new Date().getTimezoneOffset() * 60000;
-        startSyncLoop(startTimeUTC);
-      }
+      total += video.duration_seconds;
     }
-  </script>
+  }
+
+  function loadVideo(videoId, offset = 0, title = "") {
+    spinner.style.display = "block";
+    container.querySelector("iframe")?.remove();
+
+    const iframe = document.createElement("div");
+    iframe.id = "yt-player";
+    container.appendChild(iframe);
+
+    player = new YT.Player("yt-player", {
+      width: "100%",
+      height: "100%",
+      videoId: videoId,
+      playerVars: {
+        autoplay: 1,
+        mute: isMuted ? 1 : 0,
+        start: offset,
+        controls: 0,
+        modestbranding: 1,
+        rel: 0,
+        fs: 0
+      },
+      events: {
+        onReady: () => {
+          spinner.style.display = "none";
+          if (isMuted) player.mute();
+          else player.unMute();
+        },
+        onError: () => {
+          setTimeout(() => loadVideo(videoId, offset, title), 3000);
+        }
+      }
+    });
+
+    const next = playlist[(currentIndex + 1) % playlist.length];
+    banner.textContent = `Now Playing: ${title} | Next: ${next.title}`;
+
+    const currentDuration = playlist[currentIndex].duration_seconds;
+    setTimeout(() => {
+      currentIndex = (currentIndex + 1) % playlist.length;
+      const nextVid = playlist[currentIndex];
+      loadVideo(nextVid.id, 0, nextVid.title);
+    }, (currentDuration - offset) * 1000);
+  }
+ </script>
 </body>
 </html>
