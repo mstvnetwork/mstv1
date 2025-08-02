@@ -120,7 +120,9 @@
       "MiuiBrowser", "Silk", "Opera Mini"
     ];
 
-    const isBadBrowser = problematicAgents.some(agent => navigator.userAgent.includes(agent));
+    const isBadBrowser = problematicAgents.some(agent =>
+      navigator.userAgent.includes(agent)
+    );
 
     if (isBadBrowser) {
       warning.style.display = "block";
@@ -141,7 +143,7 @@
       muteBtn.onclick = () => {
         isMuted = !isMuted;
         muteBtn.textContent = isMuted ? "🔇" : "🔊";
-        loadVideo();
+        loadCurrentVideo(); // reload current with new mute
       };
 
       fetch(playlistURL)
@@ -149,18 +151,7 @@
         .then(data => {
           playlist = data.video_list;
           const startTimeUTC = new Date(data.start_time_utc).getTime();
-          const nowUTC = Date.now();
-          const elapsed = Math.floor((nowUTC - startTimeUTC) / 1000);
-          let sum = 0;
-          for (let i = 0; i < playlist.length; i++) {
-            const dur = playlist[i].duration_seconds;
-            if (sum + dur > elapsed) {
-              currentIndex = i;
-              break;
-            }
-            sum += dur;
-          }
-          loadVideo(elapsed - sum);
+          startSyncLoop(startTimeUTC);
         })
         .catch(err => {
           spinner.remove();
@@ -168,14 +159,42 @@
           warning.innerText = "⚠️ Error loading playlist.";
         });
 
-      function loadVideo(offset = 0) {
+      function startSyncLoop(startTimeUTC) {
+        function syncAndPlay() {
+          const nowUTC = Date.now();
+          let elapsed = Math.floor((nowUTC - startTimeUTC) / 1000);
+
+          let total = 0;
+          let found = false;
+          for (let i = 0; i < playlist.length; i++) {
+            const vid = playlist[i];
+            if (total + vid.duration_seconds > elapsed) {
+              currentIndex = i;
+              const offset = elapsed - total;
+              loadVideo(vid.id, offset, vid.title);
+              found = true;
+              break;
+            }
+            total += vid.duration_seconds;
+          }
+
+          if (!found && playlist.length > 0) {
+            // loop back if total time exceeded
+            elapsed %= playlist.reduce((a, b) => a + b.duration_seconds, 0);
+            startSyncLoop(startTimeUTC); // retry with looped time
+          }
+        }
+
+        syncAndPlay();
+      }
+
+      function loadVideo(videoId, offset = 0, title = "") {
         spinner.style.display = "block";
         container.querySelector("iframe")?.remove();
-        const video = playlist[currentIndex];
+
         const next = playlist[(currentIndex + 1) % playlist.length];
-        const startSeconds = offset;
         const muteParam = isMuted ? 1 : 0;
-        const src = `https://www.youtube.com/embed/${video.id}?autoplay=1&mute=${muteParam}&start=${startSeconds}&controls=0&modestbranding=1&rel=0&fs=0`;
+        const src = `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=${muteParam}&start=${offset}&controls=0&modestbranding=1&rel=0&fs=0`;
 
         const iframe = document.createElement("iframe");
         iframe.src = src;
@@ -183,15 +202,22 @@
         iframe.onload = () => spinner.style.display = "none";
         iframe.onerror = () => {
           console.warn("Retrying failed load...");
-          setTimeout(() => loadVideo(0), 3000);
+          setTimeout(() => loadVideo(videoId, offset, title), 3000);
         };
         container.appendChild(iframe);
-        banner.textContent = `Now Playing: ${video.title} | Next: ${next.title}`;
-        
+        banner.textContent = `Now Playing: ${title} | Next: ${next.title}`;
+
+        const currentDuration = playlist[currentIndex].duration_seconds;
         setTimeout(() => {
           currentIndex = (currentIndex + 1) % playlist.length;
-          loadVideo(0);
-        }, (video.duration_seconds - offset) * 1000);
+          const nextVid = playlist[currentIndex];
+          loadVideo(nextVid.id, 0, nextVid.title);
+        }, (currentDuration - offset) * 1000);
+      }
+
+      function loadCurrentVideo() {
+        const startTimeUTC = new Date().getTime() - new Date().getTimezoneOffset() * 60000;
+        startSyncLoop(startTimeUTC);
       }
     }
   </script>
