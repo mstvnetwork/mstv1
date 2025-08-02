@@ -269,7 +269,8 @@
     (function() {
       const params = new URLSearchParams(window.location.search);
       const ch = params.get('ch') || '1';
-      const playlistURL = `sync-ch=${ch}.json`;
+      const playlistURL = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch=${ch}.json`;
+
 
       fetch(playlistURL)
         .then(res => res.json())
