@@ -134,23 +134,39 @@
     isMuted ? player.mute() : player.unMute();
   };
 
-  const isBadBrowser = [
-    "SamsungBrowser", "FBAN", "FBAV", "Instagram", "Twitter",
-    "MiuiBrowser", "Silk", "Opera Mini"
-  ].some(agent => navigator.userAgent.includes(agent));
+   (function () {
+    const badBrowsers = [
+      "SamsungBrowser",    // Samsung Internet
+      "FBAN", "FBAV",      // Facebook app
+      "Instagram",         // Instagram in-app browser
+      "Twitter",           // Twitter in-app browser
+      "MiuiBrowser",       // MIUI default browser
+      "Silk",              // Amazon Silk
+      "Opera Mini"         // Opera Mini
+    ];
 
-  if (isBadBrowser) {
-    warning.style.display = "block";
-    warning.innerText = "⚠️ Your browser does not support embedded YouTube playback.";
-    spinner.remove();
-    muteBtn.remove();
-    const btn = document.createElement("button");
-    btn.id = "watch-btn";
-    btn.innerText = "Watch on YouTube";
-    btn.onclick = () => window.open("https://www.youtube.com", "_blank");
-    container.appendChild(btn);
-    banner.textContent = "YouTube player not supported on this browser.";
-  }
+    const ua = navigator.userAgent;
+    const isProblematic = badBrowsers.some(browser => ua.includes(browser));
+
+    if (isProblematic) {
+      // Remove all page content
+      document.body.innerHTML = '';
+
+      // Show warning
+      const warning = document.createElement('div');
+      warning.id = 'warning-container';
+      warning.style.padding = '20px';
+      warning.style.background = 'red';
+      warning.style.color = 'white';
+      warning.style.textAlign = 'center';
+      warning.style.fontWeight = 'bold';
+      warning.innerHTML = `
+        ⚠️ This browser is not supported.<br>
+        Watch only on <span style="text-decoration:underline;">MSTV Network</span>
+      `;
+      document.body.appendChild(warning);
+    }
+  })();
 
   let startTimeUTC = 0;
 
