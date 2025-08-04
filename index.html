@@ -1,252 +1,76 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Global Sync YouTube Player</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <title>Embedded Video with Autoplay</title>
   <style>
-    html, body {
+    body {
       margin: 0;
-      padding: 0;
-      background: black;
-      color: white;
-      font-family: sans-serif;
-      overflow: hidden;
-    }
-
-    #player-container {
-      position: relative;
-      width: 100%;
-      height: 100vh;
-      background: black;
+      background: #000;
       display: flex;
       align-items: center;
       justify-content: center;
+      height: 100vh;
     }
 
-    iframe {
+    .video-container {
+      position: relative;
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 9;
+      background: #000;
+    }
+
+    .video-iframe {
       width: 100%;
       height: 100%;
       border: none;
+      display: none;
     }
 
-    #banner {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      background: royalblue;
-      white-space: nowrap;
-      overflow: hidden;
-      box-sizing: border-box;
-    }
-
-    #banner span {
-      display: inline-block;
-      padding-left: 100%;
-      animation: scroll 20s linear infinite;
-    }
-
-    @keyframes scroll {
-      0% { transform: translateX(0); }
-      100% { transform: translateX(-100%); }
-    }
-
-    #spinner {
-      position: absolute;
-      width: 50px;
-      height: 50px;
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid gold;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    #mute-toggle {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      font-size: 28px;
-      cursor: pointer;
-      z-index: 10;
-    }
-
-    #warning {
+    .click-overlay {
       position: absolute;
       top: 0;
       left: 0;
-      background: red;
-      color: white;
       width: 100%;
-      padding: 10px;
-      text-align: center;
-      font-weight: bold;
-      z-index: 99;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
+      color: white;
+      font-size: 28px;
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      z-index: 2;
+      transition: background 0.3s;
     }
 
-    #watch-btn {
-      background: #ff0000;
-      color: white;
-      font-size: 20px;
-      padding: 15px 30px;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+    .click-overlay:hover {
+      background: rgba(0, 0, 0, 0.9);
     }
   </style>
 </head>
 <body>
-  <div id="player-container">
-    <div id="spinner"></div>
-    <div id="mute-toggle">🔇</div>
-    <div id="warning" style="display:none;"></div>
+  <div class="video-container">
+    <div class="click-overlay" onclick="startVideo()">
+      ▶️ Click to Start
+    </div>
+    <iframe
+      id="videoFrame"
+      class="video-iframe"
+      allow="autoplay; encrypted-media"
+      allowfullscreen
+    ></iframe>
   </div>
-  <div id="banner"><span></span></div>
 
-<!-- Keep rest of your HTML + CSS same -->
-
-<script>
-  const ch = new URLSearchParams(location.search).get("ch") || "1";
-  const playlistURL = `https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch${ch}.json`;
-  const container = document.getElementById("player-container");
-  const banner = document.querySelector("#banner span");
-  const spinner = document.getElementById("spinner");
-  const muteBtn = document.getElementById("mute-toggle");
-  const warning = document.getElementById("warning");
-
-  let player;
-  let playlist = [];
-  let currentIndex = 0;
-  let isMuted = true;
-
-  // Load YouTube Iframe API
-  const tag = document.createElement("script");
-  tag.src = "https://www.youtube.com/iframe_api";
-  document.body.appendChild(tag);
-
-  muteBtn.onclick = () => {
-    if (!player) return;
-    isMuted = !isMuted;
-    muteBtn.textContent = isMuted ? "🔇" : "🔊";
-    isMuted ? player.mute() : player.unMute();
-  };
-
-   (function () {
-    const badBrowsers = [
-      "SamsungBrowser",    // Samsung Internet
-      "FBAN", "FBAV",      // Facebook app
-      "Instagram",         // Instagram in-app browser
-      "Twitter",           // Twitter in-app browser
-      "MiuiBrowser",       // MIUI default browser
-      "Silk",              // Amazon Silk
-      "Opera Mini"         // Opera Mini
-    ];
-
-    const ua = navigator.userAgent;
-    const isProblematic = badBrowsers.some(browser => ua.includes(browser));
-
-    if (isProblematic) {
-      // Remove all page content
-      document.body.innerHTML = '';
-
-      // Show warning
-      const warning = document.createElement('div');
-      warning.id = 'warning-container';
-      warning.style.padding = '20px';
-      warning.style.background = 'red';
-      warning.style.color = 'white';
-      warning.style.textAlign = 'center';
-      warning.style.fontWeight = 'bold';
-      warning.innerHTML = `
-        ⚠️ This browser is not supported.<br>
-        Watch only on <span style="text-decoration:underline;">MSTV Network</span>
-      `;
-      document.body.appendChild(warning);
+  <script>
+    function startVideo() {
+      const iframe = document.getElementById('videoFrame');
+      iframe.src = "https://tellynews.xyz/e/0tbei8t26k38?autoplay=1&muted=0";
+      iframe.style.display = "block";
+      document.querySelector('.click-overlay').style.display = 'none';
     }
-  })();
-
-  let startTimeUTC = 0;
-
-  function onYouTubeIframeAPIReady() {
-    fetch(playlistURL)
-      .then(res => res.json())
-      .then(data => {
-        playlist = data.video_list;
-        startTimeUTC = new Date(data.start_time_utc).getTime();
-        syncAndLoad();
-      })
-      .catch(() => {
-        warning.style.display = "block";
-        warning.innerText = "⚠️ Failed to load playlist.";
-        spinner.remove();
-      });
-  }
-
-  function syncAndLoad() {
-    const now = Date.now();
-    let elapsed = Math.floor((now - startTimeUTC) / 1000);
-    const totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
-    elapsed %= totalDuration;
-
-    let total = 0;
-    for (let i = 0; i < playlist.length; i++) {
-      const video = playlist[i];
-      if (total + video.duration_seconds > elapsed) {
-        currentIndex = i;
-        const offset = elapsed - total;
-        loadVideo(video.id, offset, video.title);
-        break;
-      }
-      total += video.duration_seconds;
-    }
-  }
-
-  function loadVideo(videoId, offset = 0, title = "") {
-    spinner.style.display = "block";
-    container.querySelector("iframe")?.remove();
-
-    const iframe = document.createElement("div");
-    iframe.id = "yt-player";
-    container.appendChild(iframe);
-
-    player = new YT.Player("yt-player", {
-      width: "100%",
-      height: "100%",
-      videoId: videoId,
-      playerVars: {
-        autoplay: 1,
-        mute: isMuted ? 1 : 0,
-        start: offset,
-        controls: 0,
-        modestbranding: 1,
-        rel: 0,
-        fs: 0
-      },
-      events: {
-        onReady: () => {
-          spinner.style.display = "none";
-          if (isMuted) player.mute();
-          else player.unMute();
-        },
-        onError: () => {
-          setTimeout(() => loadVideo(videoId, offset, title), 3000);
-        }
-      }
-    });
-
-    const next = playlist[(currentIndex + 1) % playlist.length];
-    banner.textContent = `Now Playing: ${title} | Next: ${next.title}`;
-
-    const currentDuration = playlist[currentIndex].duration_seconds;
-    setTimeout(() => {
-      currentIndex = (currentIndex + 1) % playlist.length;
-      const nextVid = playlist[currentIndex];
-      loadVideo(nextVid.id, 0, nextVid.title);
-    }, (currentDuration - offset) * 1000);
-  }
- </script>
+  </script>
 </body>
 </html>
