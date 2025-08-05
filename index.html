@@ -57,8 +57,6 @@ const playlistURL = `sync-ch${ch}.json`;
 
 let playlist = [];
 let startTimeUTC = 0;
-let currentIndex = 0;
-let currentSeek = 0;
 
 fetch(playlistURL)
   .then(res => res.json())
@@ -69,32 +67,26 @@ fetch(playlistURL)
   });
 
 function syncAndPlay() {
-  const now = Date.now() / 1000;
-  const elapsed = now - startTimeUTC;
+  const nowUTC = Date.now() / 1000;
+  const elapsed = nowUTC - startTimeUTC;
 
-  const totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
-  const loopTime = elapsed % totalDuration;
+  const totalDuration = playlist.reduce((sum, vid) => sum + vid.duration_seconds, 0);
+  const relativeTime = elapsed % totalDuration;
 
-  let sum = 0;
-  let selectedIndex = 0;
-  let selectedSeek = 0;
+  let currentIndex = 0, slotStart = 0;
 
   for (let i = 0; i < playlist.length; i++) {
-    const dur = playlist[i].duration_seconds;
-    if (loopTime < sum + dur) {
-      selectedIndex = i;
-      selectedSeek = Math.floor(loopTime - sum);
+    const vid = playlist[i];
+    if (relativeTime < slotStart + vid.duration_seconds) {
+      currentIndex = i;
       break;
     }
-    sum += dur;
+    slotStart += vid.duration_seconds;
   }
 
-  // ONLY change video if we're not already on the correct one
-  if (selectedIndex !== currentIndex || Math.abs(selectedSeek - currentSeek) > 2) {
-    currentIndex = selectedIndex;
-    currentSeek = selectedSeek;
-    playVideo(playlist[currentIndex], currentSeek);
-  }
+  const currentVideo = playlist[currentIndex];
+  const seekTime = Math.floor(relativeTime - slotStart);
+  playVideo(currentVideo, seekTime);
 }
 
 function playVideo(videoItem, seekTime) {
@@ -102,10 +94,10 @@ function playVideo(videoItem, seekTime) {
   video.src = videoItem.url;
 
   video.onloadedmetadata = () => {
-    const safeSeek = Math.min(video.duration - 1, seekTime);
-    video.currentTime = safeSeek;
     spinner.style.display = 'none';
-    video.play().catch(console.warn);
+    const safeSeek = Math.min(videoItem.duration_seconds - 1, seekTime);
+    video.currentTime = safeSeek;
+    video.play().catch(err => console.warn("Autoplay failed:", err));
   };
 
   video.onerror = () => {
@@ -115,7 +107,7 @@ function playVideo(videoItem, seekTime) {
 }
 
 video.onended = () => {
-  syncAndPlay(); // Check which video should now play
+  syncAndPlay(); // immediately play the next based on UTC
 };
 
 muteBtn.onclick = () => {
@@ -123,8 +115,7 @@ muteBtn.onclick = () => {
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
 };
 
-// Resync every 20s to fix drift or tab switching
-setInterval(syncAndPlay, 20000);
+setInterval(syncAndPlay, 60000); // re-sync every 60s in case user stays long
 </script>
 </body>
 </html>
