@@ -5,41 +5,72 @@
 </head>
 <body>
   <h2>Screen Caster</h2>
-  <button id="start">Start Casting</button>
+  <button id="start" disabled>Start Casting</button>
 
   <script>
-    const castId = "mystream"; // unique stream id
+    // Get castId from URL, fallback to 'mystream'
+    const urlParams = new URLSearchParams(window.location.search);
+    const castId = urlParams.get('castid') || 'mystream';
+
+    const startBtn = document.getElementById('start');
     const socket = new WebSocket('wss://mapping-moms-bi-guide.trycloudflare.com');
 
     let peer;
 
     socket.onopen = () => {
       console.log("Connected to signaling server");
+
+      // Join the signaling server with castId and role 'sender'
+      socket.send(JSON.stringify({ type: "join", castId, payload: { role: "sender" } }));
+
+      // Enable start button after connection established
+      startBtn.disabled = false;
     };
 
     socket.onmessage = async ({ data }) => {
-      const msg = JSON.parse(data);
+      let msg;
+      try {
+        msg = JSON.parse(data);
+      } catch {
+        console.warn("Non-JSON message:", data);
+        return;
+      }
+
       if (msg.type === "answer") {
-        peer.setRemoteDescription(new RTCSessionDescription(msg.answer));
-      } else if (msg.type === "candidate") {
-        peer.addIceCandidate(new RTCIceCandidate(msg.candidate));
+        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload.answer));
+      } else if (msg.type === "ice-candidate") {
+        await peer.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
       }
     };
 
-    document.getElementById("start").onclick = async () => {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-      peer = new RTCPeerConnection();
-      stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    startBtn.onclick = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        peer = new RTCPeerConnection();
 
-      peer.onicecandidate = (e) => {
-        if (e.candidate) {
-          socket.send(JSON.stringify({ type: "candidate", candidate: e.candidate, castId }));
-        }
-      };
+        stream.getTracks().forEach(track => peer.addTrack(track, stream));
 
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
-      socket.send(JSON.stringify({ type: "offer", offer, castId }));
+        peer.onicecandidate = (e) => {
+          if (e.candidate) {
+            socket.send(JSON.stringify({ 
+              type: "ice-candidate", 
+              castId, 
+              payload: { candidate: e.candidate, to: "viewers" }
+            }));
+          }
+        };
+
+        const offer = await peer.createOffer();
+        await peer.setLocalDescription(offer);
+
+        socket.send(JSON.stringify({ 
+          type: "offer", 
+          castId, 
+          payload: { offer }
+        }));
+      } catch (err) {
+        alert("Error accessing display media: " + err.message);
+      }
     };
   </script>
 </body>
