@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Global Sync MP4 Player</title>
+  <title>Global Sync MP4 Channel</title>
   <style>
     body { margin: 0; background: black; }
     #video { width: 100%; height: 100vh; background: black; object-fit: contain; }
@@ -41,10 +41,11 @@
 </head>
 <body>
 
-<video id="video" autoplay muted></video>
+<video id="video" autoplay muted playsinline></video>
 <div id="spinner"></div>
 <button id="mute-btn">🔇</button>
 <div id="banner"><span>Loading...</span></div>
+
 <script>
 const video = document.getElementById('video');
 const banner = document.querySelector('#banner span');
@@ -57,67 +58,68 @@ const playlistURL = `sync-ch${ch}.json`;
 
 let playlist = [];
 let startTimeUTC = 0;
+let currentIndex = 0;
+let currentSeek = 0;
 
 fetch(playlistURL)
   .then(res => res.json())
   .then(data => {
     playlist = data.video_list;
     startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-    syncAndPlay();
+    startSync();
   });
 
-function syncAndPlay() {
-  const nowUTC = Date.now() / 1000;
-  const elapsed = nowUTC - startTimeUTC;
+function startSync() {
+  const now = Date.now() / 1000;
+  const elapsed = now - startTimeUTC;
 
-  const totalDuration = playlist.reduce((sum, vid) => sum + vid.duration_seconds, 0);
-  const relativeTime = elapsed % totalDuration;
+  const totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
+  const loopTime = elapsed % totalDuration;
 
-  let currentIndex = 0, slotStart = 0;
-
+  let sum = 0;
   for (let i = 0; i < playlist.length; i++) {
-    const vid = playlist[i];
-    if (relativeTime < slotStart + vid.duration_seconds) {
+    const videoDuration = playlist[i].duration_seconds;
+    if (loopTime < sum + videoDuration) {
       currentIndex = i;
+      currentSeek = Math.floor(loopTime - sum);
       break;
     }
-    slotStart += vid.duration_seconds;
+    sum += videoDuration;
   }
 
-  const currentVideo = playlist[currentIndex];
-  const seekTime = Math.floor(relativeTime - slotStart);
-  playVideo(currentVideo, seekTime);
+  playSyncedVideo();
 }
 
-function playVideo(videoItem, seekTime) {
-  banner.textContent = "Now Playing: " + videoItem.title;
-  video.src = videoItem.url;
+function playSyncedVideo() {
+  const item = playlist[currentIndex];
+  video.src = item.url;
+  banner.textContent = "Now Playing: " + item.title;
 
   video.onloadedmetadata = () => {
-    spinner.style.display = 'none';
-    const safeSeek = Math.min(videoItem.duration_seconds - 1, seekTime);
+    const safeSeek = Math.min(currentSeek, video.duration - 1);
     video.currentTime = safeSeek;
-    video.play().catch(err => console.warn("Autoplay failed:", err));
+    spinner.style.display = 'none';
+    video.play().catch(console.warn);
   };
 
   video.onerror = () => {
-    spinner.style.display = 'none';
     banner.textContent = "⚠️ Failed to load video.";
+    spinner.style.display = 'none';
   };
 }
 
+// Auto resync every 30 seconds in case of drift
+setInterval(startSync, 30000);
+
 video.onended = () => {
-  syncAndPlay(); // immediately play the next based on UTC
+  // Immediately sync to whatever video is current in schedule
+  startSync();
 };
 
 muteBtn.onclick = () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
 };
-
-setInterval(syncAndPlay, 60000); // re-sync every 60s in case user stays long
-</script>
-
 </script>
 
 </body>
