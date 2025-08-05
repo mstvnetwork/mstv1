@@ -71,22 +71,21 @@ function syncAndPlay() {
   const elapsed = nowUTC - startTimeUTC;
 
   const totalDuration = playlist.reduce((sum, vid) => sum + vid.duration_seconds, 0);
-  const relativeTime = elapsed % totalDuration; // Looping playlist
+  const relativeTime = elapsed % totalDuration;
 
-  let currentIndex = 0;
-  let accumulated = 0;
+  let currentIndex = 0, slotStart = 0;
 
   for (let i = 0; i < playlist.length; i++) {
     const vid = playlist[i];
-    if (relativeTime < accumulated + vid.duration_seconds) {
+    if (relativeTime < slotStart + vid.duration_seconds) {
       currentIndex = i;
       break;
     }
-    accumulated += vid.duration_seconds;
+    slotStart += vid.duration_seconds;
   }
 
   const currentVideo = playlist[currentIndex];
-  const seekTime = Math.floor(relativeTime - accumulated);
+  const seekTime = Math.floor(relativeTime - slotStart);
   playVideo(currentVideo, seekTime);
 }
 
@@ -96,36 +95,29 @@ function playVideo(videoItem, seekTime) {
 
   video.onloadedmetadata = () => {
     spinner.style.display = 'none';
-
-    // Clamp seek time within video duration
     const safeSeek = Math.min(videoItem.duration_seconds - 1, seekTime);
     video.currentTime = safeSeek;
-
     video.play().catch(err => console.warn("Autoplay failed:", err));
   };
 
   video.onerror = () => {
     spinner.style.display = 'none';
-    banner.textContent = "⚠️ Video failed to load.";
+    banner.textContent = "⚠️ Failed to load video.";
   };
 }
 
-// Auto-resync every few seconds to stay accurate
-setInterval(() => {
-  if (!video.paused) {
-    syncAndPlay(); // Ensures sync in case of drift
-  }
-}, 30000); // every 30s
+video.onended = () => {
+  syncAndPlay(); // immediately play the next based on UTC
+};
 
-// Handle mute toggle
 muteBtn.onclick = () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
 };
 
-video.onended = () => {
-  syncAndPlay(); // Resync when video ends
-};
+setInterval(syncAndPlay, 60000); // re-sync every 60s in case user stays long
+</script>
+
 </script>
 
 </body>
