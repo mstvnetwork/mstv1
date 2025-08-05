@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Global Sync MP4 Player</title>
+  <style>
+    body { margin: 0; background: black; }
+    #video { width: 100%; height: 100vh; background: black; object-fit: contain; }
+    #banner {
+      position: fixed; bottom: 0; width: 100%;
+      background: blue; color: white; padding: 8px;
+      white-space: nowrap; overflow: hidden;
+    }
+    #banner span {
+      display: inline-block;
+      animation: scroll 15s linear infinite;
+    }
+    @keyframes scroll {
+      0% { transform: translateX(100%); }
+      100% { transform: translateX(-100%); }
+    }
+    #mute-btn {
+      position: fixed; top: 10px; right: 10px;
+      background: rgba(0,0,0,0.6); color: white;
+      font-size: 20px; padding: 6px 10px;
+      border: none; border-radius: 5px;
+    }
+    #spinner {
+      position: fixed; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      border: 6px solid white;
+      border-top: 6px solid gold;
+      border-radius: 50%;
+      width: 50px; height: 50px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<video id="video" autoplay muted></video>
+<div id="spinner"></div>
+<button id="mute-btn">🔇</button>
+<div id="banner"><span>Loading...</span></div>
+
+<script>
+const video = document.getElementById('video');
+const banner = document.querySelector('#banner span');
+const muteBtn = document.getElementById('mute-btn');
+const spinner = document.getElementById('spinner');
+
+const params = new URLSearchParams(window.location.search);
+const ch = params.get("ch") || "1";
+const playlistURL = `sync-ch${ch}.json`;
+
+let playlist = [];
+let startTimeUTC = 0;
+
+fetch(playlistURL)
+  .then(res => res.json())
+  .then(data => {
+    playlist = data.video_list;
+    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
+    syncAndPlay();
+  });
+
+function syncAndPlay() {
+  const now = Date.now() / 1000;
+  const elapsed = now - startTimeUTC;
+  let index = 0, total = 0;
+
+  for (let i = 0; i < playlist.length; i++) {
+    const dur = playlist[i].duration_seconds;
+    if (elapsed < total + dur) {
+      index = i;
+      break;
+    }
+    total += dur;
+  }
+
+  const current = playlist[index];
+  if (!current) return;
+
+  const seekTime = Math.floor(elapsed - total);
+  playVideo(current, seekTime);
+}
+
+function playVideo(videoItem, seekTime) {
+  video.src = videoItem.url;
+  video.currentTime = seekTime;
+  banner.textContent = "Now Playing: " + videoItem.title;
+
+  video.onloadeddata = () => {
+    spinner.style.display = 'none';
+    video.play().catch(console.warn);
+  };
+
+  video.onerror = () => {
+    banner.textContent = "Video failed to load.";
+    spinner.style.display = 'none';
+  };
+}
+
+video.onended = () => {
+  location.reload(); // Resync after video ends
+};
+
+muteBtn.onclick = () => {
+  video.muted = !video.muted;
+  muteBtn.textContent = video.muted ? "🔇" : "🔊";
+};
+</script>
+
+</body>
+</html>
