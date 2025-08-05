@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Screen Caster - MSTV</title>
+</head>
+<body>
+  <h2>Screen Caster</h2>
+  <button id="start">Start Casting</button>
+
+  <script>
+    const castId = "mystream"; // unique stream id
+    const socket = new WebSocket("wss://scott-nat-assessment-rankings.trycloudflare.com");
+    let peer;
+
+    socket.onopen = () => {
+      console.log("Connected to signaling server");
+    };
+
+    socket.onmessage = async ({ data }) => {
+      const msg = JSON.parse(data);
+      if (msg.type === "answer") {
+        peer.setRemoteDescription(new RTCSessionDescription(msg.answer));
+      } else if (msg.type === "candidate") {
+        peer.addIceCandidate(new RTCIceCandidate(msg.candidate));
+      }
+    };
+
+    document.getElementById("start").onclick = async () => {
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+      peer = new RTCPeerConnection();
+      stream.getTracks().forEach(track => peer.addTrack(track, stream));
+
+      peer.onicecandidate = (e) => {
+        if (e.candidate) {
+          socket.send(JSON.stringify({ type: "candidate", candidate: e.candidate, castId }));
+        }
+      };
+
+      const offer = await peer.createOffer();
+      await peer.setLocalDescription(offer);
+      socket.send(JSON.stringify({ type: "offer", offer, castId }));
+    };
+  </script>
+</body>
+</html>
