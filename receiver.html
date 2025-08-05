@@ -1,47 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Watch Live Cast - MSTV</title>
+  <title>Screen Receiver - MSTV</title>
 </head>
 <body>
   <h2>Watching Cast</h2>
-  <video id="remote" autoplay playsinline controls></video>
+  <video id="video" autoplay playsinline controls style="width: 100%; max-width: 600px;"></video>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const castId = urlParams.get("castid") || "mystream";
+    const castId = urlParams.get('castid') || 'mystream';
 
+    const video = document.getElementById('video');
     const socket = new WebSocket('wss://mapping-moms-bi-guide.trycloudflare.com');
 
-    const peer = new RTCPeerConnection();
-
-    peer.ontrack = (event) => {
-      document.getElementById("remote").srcObject = event.streams[0];
-    };
-
-    peer.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.send(JSON.stringify({ type: "candidate", candidate: e.candidate, castId }));
-      }
-    };
+    let peer;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({ type: "watcher", castId }));
+      console.log("Connected to signaling server");
+      // Join signaling server with role 'receiver'
+      socket.send(JSON.stringify({ type: "join", castId, payload: { role: "receiver" } }));
     };
 
     socket.onmessage = async ({ data }) => {
-      const msg = JSON.parse(data);
+      let msg;
+      try {
+        msg = JSON.parse(data);
+      } catch {
+        console.warn("Non-JSON message:", data);
+        return;
+      }
+
       if (msg.type === "offer") {
-        await peer.setRemoteDescription(new RTCSessionDescription(msg.offer));
+        // Incoming offer from sender
+        peer = new RTCPeerConnection();
+
+        peer.ontrack = (event) => {
+          if (video.srcObject !== event.streams[0]) {
+            video.srcObject = event.streams[0];
+            console.log('Received remote stream');
+          }
+        };
+
+        peer.onicecandidate = (e) => {
+          if (e.candidate) {
+            socket.send(JSON.stringify({
+              type: "ice-candidate",
+              castId,
+              payload: { candidate: e.candidate, to: "sender" }
+            }));
+          }
+        };
+
+        await peer.setRemoteDescription(new RTCSessionDescription(msg.payload.offer));
+
         const answer = await peer.createAnswer();
         await peer.setLocalDescription(answer);
-        socket.send(JSON.stringify({ type: "answer", answer, castId }));
-      } else if (msg.type === "candidate") {
-        peer.addIceCandidate(new RTCIceCandidate(msg.candidate));
+
+        socket.send(JSON.stringify({ 
+          type: "answer", 
+          castId, 
+          payload: { answer }
+        }));
+
+      } else if (msg.type === "ice-candidate") {
+        await peer.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));
       }
     };
-
-    window.onunload = () => socket.close();
   </script>
 </body>
 </html>
