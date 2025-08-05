@@ -45,7 +45,6 @@
 <div id="spinner"></div>
 <button id="mute-btn">🔇</button>
 <div id="banner"><span>Loading...</span></div>
-
 <script>
 const video = document.getElementById('video');
 const banner = document.querySelector('#banner span');
@@ -68,49 +67,64 @@ fetch(playlistURL)
   });
 
 function syncAndPlay() {
-  const now = Date.now() / 1000;
-  const elapsed = now - startTimeUTC;
-  let index = 0, total = 0;
+  const nowUTC = Date.now() / 1000;
+  const elapsed = nowUTC - startTimeUTC;
+
+  const totalDuration = playlist.reduce((sum, vid) => sum + vid.duration_seconds, 0);
+  const relativeTime = elapsed % totalDuration; // Looping playlist
+
+  let currentIndex = 0;
+  let accumulated = 0;
 
   for (let i = 0; i < playlist.length; i++) {
-    const dur = playlist[i].duration_seconds;
-    if (elapsed < total + dur) {
-      index = i;
+    const vid = playlist[i];
+    if (relativeTime < accumulated + vid.duration_seconds) {
+      currentIndex = i;
       break;
     }
-    total += dur;
+    accumulated += vid.duration_seconds;
   }
 
-  const current = playlist[index];
-  if (!current) return;
-
-  const seekTime = Math.floor(elapsed - total);
-  playVideo(current, seekTime);
+  const currentVideo = playlist[currentIndex];
+  const seekTime = Math.floor(relativeTime - accumulated);
+  playVideo(currentVideo, seekTime);
 }
 
 function playVideo(videoItem, seekTime) {
-  video.src = videoItem.url;
-  video.currentTime = seekTime;
   banner.textContent = "Now Playing: " + videoItem.title;
+  video.src = videoItem.url;
 
-  video.onloadeddata = () => {
+  video.onloadedmetadata = () => {
     spinner.style.display = 'none';
-    video.play().catch(console.warn);
+
+    // Clamp seek time within video duration
+    const safeSeek = Math.min(videoItem.duration_seconds - 1, seekTime);
+    video.currentTime = safeSeek;
+
+    video.play().catch(err => console.warn("Autoplay failed:", err));
   };
 
   video.onerror = () => {
-    banner.textContent = "Video failed to load.";
     spinner.style.display = 'none';
+    banner.textContent = "⚠️ Video failed to load.";
   };
 }
 
-video.onended = () => {
-  location.reload(); // Resync after video ends
-};
+// Auto-resync every few seconds to stay accurate
+setInterval(() => {
+  if (!video.paused) {
+    syncAndPlay(); // Ensures sync in case of drift
+  }
+}, 30000); // every 30s
 
+// Handle mute toggle
 muteBtn.onclick = () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
+};
+
+video.onended = () => {
+  syncAndPlay(); // Resync when video ends
 };
 </script>
 
