@@ -45,7 +45,6 @@
 <div id="spinner"></div>
 <button id="mute-btn">🔇</button>
 <div id="banner"><span>Loading...</span></div>
-
 <script>
 const video = document.getElementById('video');
 const banner = document.querySelector('#banner span');
@@ -66,10 +65,10 @@ fetch(playlistURL)
   .then(data => {
     playlist = data.video_list;
     startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-    startSync();
+    syncAndPlay();
   });
 
-function startSync() {
+function syncAndPlay() {
   const now = Date.now() / 1000;
   const elapsed = now - startTimeUTC;
 
@@ -77,50 +76,55 @@ function startSync() {
   const loopTime = elapsed % totalDuration;
 
   let sum = 0;
+  let selectedIndex = 0;
+  let selectedSeek = 0;
+
   for (let i = 0; i < playlist.length; i++) {
-    const videoDuration = playlist[i].duration_seconds;
-    if (loopTime < sum + videoDuration) {
-      currentIndex = i;
-      currentSeek = Math.floor(loopTime - sum);
+    const dur = playlist[i].duration_seconds;
+    if (loopTime < sum + dur) {
+      selectedIndex = i;
+      selectedSeek = Math.floor(loopTime - sum);
       break;
     }
-    sum += videoDuration;
+    sum += dur;
   }
 
-  playSyncedVideo();
+  // ONLY change video if we're not already on the correct one
+  if (selectedIndex !== currentIndex || Math.abs(selectedSeek - currentSeek) > 2) {
+    currentIndex = selectedIndex;
+    currentSeek = selectedSeek;
+    playVideo(playlist[currentIndex], currentSeek);
+  }
 }
 
-function playSyncedVideo() {
-  const item = playlist[currentIndex];
-  video.src = item.url;
-  banner.textContent = "Now Playing: " + item.title;
+function playVideo(videoItem, seekTime) {
+  banner.textContent = "Now Playing: " + videoItem.title;
+  video.src = videoItem.url;
 
   video.onloadedmetadata = () => {
-    const safeSeek = Math.min(currentSeek, video.duration - 1);
+    const safeSeek = Math.min(video.duration - 1, seekTime);
     video.currentTime = safeSeek;
     spinner.style.display = 'none';
     video.play().catch(console.warn);
   };
 
   video.onerror = () => {
-    banner.textContent = "⚠️ Failed to load video.";
     spinner.style.display = 'none';
+    banner.textContent = "⚠️ Failed to load video.";
   };
 }
 
-// Auto resync every 30 seconds in case of drift
-setInterval(startSync, 30000);
-
 video.onended = () => {
-  // Immediately sync to whatever video is current in schedule
-  startSync();
+  syncAndPlay(); // Check which video should now play
 };
 
 muteBtn.onclick = () => {
   video.muted = !video.muted;
   muteBtn.textContent = video.muted ? "🔇" : "🔊";
 };
-</script>
 
+// Resync every 20s to fix drift or tab switching
+setInterval(syncAndPlay, 20000);
+</script>
 </body>
 </html>
