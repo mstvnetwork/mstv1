@@ -11,7 +11,8 @@
     const urlParams = new URLSearchParams(window.location.search);
     const castId = urlParams.get("castid") || "mystream";
 
-    const socket = new WebSocket("wss://scott-nat-assessment-rankings.trycloudflare.com");
+    const socket = new WebSocket('wss://mapping-moms-bi-guide.trycloudflare.com');
+
     const peer = new RTCPeerConnection();
 
     peer.ontrack = (event) => {
