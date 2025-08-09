@@ -38,6 +38,25 @@
     0%   { transform: translate(0, 0); }
     100% { transform: translate(-100%, 0); }
   }
+  .info-marquee {
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    box-sizing: border-box;
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #000;
+    background-color: #007bff;
+    padding: 0.5rem 0;
+    border-top: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    margin-top: 1.5rem;
+  }
+  .info-marquee-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: marquee 30s linear infinite;
+  }
   .container {
     max-width: 1200px;
     margin: 1rem auto;
@@ -141,7 +160,7 @@
 
 <div class="marquee">
   <div class="marquee-text">
-    All in one channel latest serials, series, movies, sports from top rated platforms like Netflix, Hotstar, Prime Videos etc to watch stay tuned on MSTV NETWORK. &nbsp; &nbsp; &nbsp;
+    All-in-one channel for the latest serials, series, movies, and sports from top-rated platforms like Netflix, Hotstar, Prime Video, and more. Stay tuned to MSTV Network! &nbsp; &nbsp; &nbsp;
   </div>
 </div>
 
@@ -155,13 +174,18 @@
     <img src="https://raw.githubusercontent.com/mstvnetwork/mstv1/main/81GCH6UU7qL.png" alt="Channel Image 6" />
     <img src="https://raw.githubusercontent.com/mstvnetwork/mstv1/main/download%20(2).jpeg" alt="Channel Image 7" />
     <img src="https://raw.githubusercontent.com/mstvnetwork/mstv1/main/images%20(1).png" alt="Channel Image 8" />
-    
   </div>
 </div>
 
 <div id="player-container">
   <video id="videoPlayer" playsinline></video>
   <div id="mute-toggle" title="Mute/Unmute">🔇</div>
+</div>
+
+<div class="info-marquee">
+  <div id="infoMarqueeText" class="info-marquee-text">
+    <!-- This content will be updated by JavaScript -->
+  </div>
 </div>
 
 <div id="fb-follow" title="Click to follow on Facebook" onclick="window.open('https://facebook.com/yourpage','_blank')">
@@ -181,12 +205,22 @@
 
   const video = document.getElementById('videoPlayer');
   const muteToggle = document.getElementById('mute-toggle');
+  const infoMarqueeText = document.getElementById('infoMarqueeText');
 
   let playlist = [];
   let globalStartTimeUTC = null;
   let playingIndex = -1;
   let totalDuration = 0;
   let syncIntervalId = null;
+  
+  const preloader = document.createElement('video');
+  preloader.preload = 'auto';
+  preloader.muted = true;
+  preloader.style.display = 'none';
+  document.body.appendChild(preloader);
+
+  // A flag to prevent sync from running during a transition
+  let isTransitioning = false;
 
   // Mute toggle and persistence
   function updateMuteIcon() {
@@ -204,6 +238,69 @@
     localStorage.setItem('mstv_mute_state', video.muted ? 'muted' : 'unmuted');
   };
 
+  // Update the info banner with Now Playing and Up Next titles
+  function updateInfoMarquee() {
+    if (playlist.length === 0 || playingIndex === -1) return;
+
+    const nowPlayingTitle = playlist[playingIndex].title || 'Unknown Title';
+    const nextIndex = (playingIndex + 1) % playlist.length;
+    const upNextTitle = playlist[nextIndex].title || 'Unknown Title';
+    
+    infoMarqueeText.innerHTML = `
+      <span style="font-weight: bold;">NOW PLAYING:</span> ${nowPlayingTitle} &nbsp; &nbsp; &nbsp; &nbsp; 
+      <span style="font-weight: bold;">UP NEXT:</span> ${upNextTitle} &nbsp; &nbsp; &nbsp; &nbsp;
+    `;
+  }
+  
+  // Function to start preloading the next video in the sequence
+  function preloadNextVideo() {
+    if (playlist.length > 1) {
+        const nextIndex = (playingIndex + 1) % playlist.length;
+        const nextVideoUrl = playlist[nextIndex].url;
+        preloader.src = nextVideoUrl;
+        console.log(`Preloading next video: ${nextVideoUrl}`);
+    }
+  }
+
+  // Play video at a specific index and offset
+  function playVideoAt(i, offset) {
+    if (!playlist[i]) return;
+    const v = playlist[i];
+    
+    console.log(`Playing video: ${v.title}, starting at offset: ${offset}s`);
+    
+    // Set a new video source if it's different from the current one
+    if (video.src !== v.url) {
+        video.src = v.url;
+        video.onloadeddata = () => {
+            video.currentTime = offset;
+            video.play().catch(e => {
+                console.log('Autoplay failed, muting and trying again:', e);
+                video.muted = true;
+                video.play();
+            });
+            isTransitioning = false;
+            updateInfoMarquee();
+            preloadNextVideo();
+        };
+    } else {
+        video.currentTime = offset;
+        video.play().catch(e => {
+            console.log('Autoplay failed, muting and trying again:', e);
+            video.muted = true;
+            video.play();
+        });
+        isTransitioning = false;
+    }
+  }
+
+  // Function to handle playing the next video in the playlist
+  function playNextVideoFromEnd() {
+    isTransitioning = true;
+    playingIndex = (playingIndex + 1) % playlist.length;
+    playVideoAt(playingIndex, 0);
+  }
+
   // Load JSON playlist
   async function loadJSON() {
     try {
@@ -212,7 +309,11 @@
       const data = await res.json();
 
       globalStartTimeUTC = new Date(data.start_time_utc);
-      playlist = data.video_list || [];
+      playlist = data.video_list.map(v => ({
+          ...v,
+          // Remove any hashes like #nsfw from the URL
+          url: v.url.split('#')[0]
+      }));
       totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
 
       if (playlist.length > 0) {
@@ -220,18 +321,17 @@
       }
     } catch (e) {
       console.error('Error loading JSON:', e);
-      alert('Failed to load playlist. See console.');
     }
   }
 
   // Calculate live playback position and load video
   function syncAndPlay() {
-    if (!globalStartTimeUTC || playlist.length === 0) return;
+    // Block sync if a transition is in progress or if playlist is empty
+    if (isTransitioning || !globalStartTimeUTC || playlist.length === 0) return;
 
     const now = new Date();
     let elapsed = Math.floor((now - globalStartTimeUTC) / 1000);
     if (elapsed < 0) elapsed = 0;
-
     elapsed = elapsed % totalDuration;
 
     let cumSum = 0;
@@ -245,7 +345,9 @@
           playVideoAt(playingIndex, offset);
         } else {
           const currentTime = video.currentTime;
-          if (Math.abs(currentTime - offset) > 2) {
+          // Only re-sync if the player has drifted more than 5 seconds AND is not near the end of the video
+          if (Math.abs(currentTime - offset) > 5 && (video.duration - currentTime) > 5) {
+            console.log('Re-syncing player due to time drift.');
             video.currentTime = offset;
           }
         }
@@ -254,40 +356,14 @@
     }
   }
 
-  // Play video at index and offset
-  function playVideoAt(i, offset) {
-    if (!playlist[i]) return;
-    const v = playlist[i];
-    
-    if (video.src !== v.url) {
-      video.src = v.url;
-      video.onloadeddata = () => {
-        video.currentTime = offset;
-        video.play().catch(e => {
-          console.log('Autoplay failed, muting and trying again:', e);
-          video.muted = true;
-          video.play();
-        });
-      };
-    } else {
-      video.currentTime = offset;
-      video.play().catch(e => {
-        console.log('Autoplay failed, muting and trying again:', e);
-        video.muted = true;
-        video.play();
-      });
-    }
-
-    video.onended = () => {
-      playingIndex = (playingIndex + 1) % playlist.length;
-      playVideoAt(playingIndex, 0);
-    };
-  }
-
-  // Initial setup and event listeners
+  // --- Initial Setup and Event Listeners ---
   loadMuteState();
   loadJSON();
 
+  // The primary onended event listener to handle seamless transitions
+  video.onended = playNextVideoFromEnd;
+
+  // A periodic check to re-sync the player with the global timeline
   video.onplaying = () => {
     if (!syncIntervalId) {
       syncIntervalId = setInterval(syncAndPlay, 5_000);
