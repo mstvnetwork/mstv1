@@ -2,59 +2,94 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>MSTV NETWORK</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MSTV NETWORK</title>
 <style>
-  body { font-family: Arial, sans-serif; background: #111; color: white; margin: 0; padding: 0; }
-  header { text-align: center; padding: 10px; font-size: 24px; font-weight: bold; background: #222; }
-  .poster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; padding: 10px; }
-  .poster-grid img { width: 100%; border-radius: 5px; }
-  .channel-select { text-align: center; padding: 10px; }
-  select {
-    padding: 5px;
-    font-size: 16px;
-    color: gold;
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0; padding: 0; background: #111; color: #eee;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    padding: 10px 20px; background: #222;
+    font-size: 1.5em; font-weight: bold;
+  }
+  main {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; padding: 20px;
+  }
+  #channelSelect {
+    margin-bottom: 10px;
+    font-size: 1em;
+    color: goldenrod;
     background: #222;
-    border: 1px solid gold;
+    border: 1px solid goldenrod;
+    padding: 5px 10px;
+    border-radius: 5px;
     cursor: pointer;
   }
-  select option {
-    color: black;
+  #channelSelect option[disabled] {
+    color: goldenrod;
   }
-  .player-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: black; }
-  video { width: 100%; height: 450px; background: black; }
-  .mute-toggle {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    background: rgba(0,0,0,0.6);
-    border-radius: 50%;
-    padding: 5px;
-    cursor: pointer;
-    font-size: 20px;
-    user-select: none;
-    color: white;
-  }
-  .facebook-link { text-align: center; padding: 10px; }
-  .facebook-link a { color: #3b5998; font-size: 18px; text-decoration: none; }
-  footer { background: #222; text-align: center; padding: 15px; font-size: 14px; margin-top: 20px; }
-  .banner {
-    background: #0055ff;
-    padding: 5px 0;
-    white-space: nowrap;
+  #videoContainer {
+    position: relative;
+    width: 90vw; max-width: 900px; aspect-ratio: 16 / 9;
+    background: black;
     overflow: hidden;
-    height: 24px;
-    line-height: 24px;
-    font-weight: bold;
   }
-  .banner span {
+  video {
+    width: 100%; height: 100%;
+    background: black;
+  }
+  #muteToggle {
+    position: absolute;
+    top: 10px; right: 10px;
+    font-size: 1.8em;
+    cursor: pointer;
+    user-select: none;
+    color: #eee;
+    text-shadow: 0 0 6px #000;
+  }
+  #scrollBanner {
+    width: 90vw; max-width: 900px;
+    margin-top: 10px;
+    background: #0033cc;
+    color: white;
+    font-weight: bold;
+    padding: 8px 12px;
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+  }
+  #scrollBanner span {
     display: inline-block;
     padding-left: 100%;
-    animation: scroll 15s linear infinite;
+    animation: scrollLeft 15s linear infinite;
   }
-  @keyframes scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(-100%); }
+  @keyframes scrollLeft {
+    from { transform: translateX(0); }
+    to { transform: translateX(-100%); }
+  }
+  footer {
+    background: #222;
+    padding: 15px 20px;
+    text-align: center;
+    font-size: 0.9em;
+    color: #aaa;
+  }
+  #followFacebook {
+    margin-top: 12px;
+    color: #3b5998;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    user-select: none;
+  }
+  #followFacebook svg {
+    width: 24px; height: 24px;
+    margin-right: 6px;
+    fill: #3b5998;
   }
 </style>
 </head>
@@ -62,32 +97,28 @@
 
 <header>MSTV NETWORK</header>
 
-<div class="poster-grid">
-  <img src="https://via.placeholder.com/150x80?text=Poster1" alt="Poster 1" />
-  <img src="https://via.placeholder.com/150x80?text=Poster2" alt="Poster 2" />
-  <img src="https://via.placeholder.com/150x80?text=Poster3" alt="Poster 3" />
-  <img src="https://via.placeholder.com/150x80?text=Poster4" alt="Poster 4" />
-</div>
-
-<div class="channel-select">
-  <select id="channelSelector">
-    <option value="" selected disabled style="color:gold;">Click select channels</option>
+<main>
+  <select id="channelSelect" aria-label="Select TV Channel">
+    <option disabled selected>Click select channels</option>
   </select>
-</div>
 
-<div class="player-container">
-  <video id="videoPlayer" controls playsinline></video>
-  <div class="mute-toggle" id="muteToggle" title="Toggle mute">🔊</div>
-  <div class="banner"><span id="scrollingBanner">No channel selected</span></div>
-</div>
+  <div id="videoContainer">
+    <video id="videoPlayer" playsinline controls></video>
+    <div id="muteToggle" title="Toggle Mute">🔇</div>
+  </div>
 
-<div class="facebook-link">
-  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">📘 Click here to follow</a>
-</div>
+  <div id="scrollBanner"><span>&nbsp;</span></div>
+
+  <div id="followFacebook" onclick="window.open('https://facebook.com/mstvnetwork','_blank')">
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M22.675 0H1.325C.593 0 0 .593 0 1.325v21.351C0 23.407.593 24 1.325 24h11.494v-9.294H9.691v-3.622h3.128V8.413c0-3.1 1.893-4.788 4.659-4.788 1.325 0 2.466.099 2.798.143v3.245l-1.92.001c-1.506 0-1.797.716-1.797 1.765v2.317h3.588l-.467 3.622h-3.12V24h6.116c.73 0 1.324-.593 1.324-1.324V1.325C24 .593 23.407 0 22.675 0z"/>
+    </svg>
+    Click here to follow
+  </div>
+</main>
 
 <footer>
-  <p>About Us: MSTV Network brings you globally synced live-style programming 24/7.</p>
-  <p>&copy; 2025 MSTV Network. All Rights Reserved.</p>
+  About us | &copy; 2025 MSTV NETWORK
 </footer>
 
 <script>
@@ -102,134 +133,183 @@ const channels = [
   }
 ];
 
-const videoPlayer = document.getElementById("videoPlayer");
-const channelSelector = document.getElementById("channelSelector");
-const muteToggle = document.getElementById("muteToggle");
-const scrollingBanner = document.getElementById("scrollingBanner");
+const videoPlayer = document.getElementById('videoPlayer');
+const channelSelect = document.getElementById('channelSelect');
+const scrollBanner = document.getElementById('scrollBanner').querySelector('span');
+const muteToggle = document.getElementById('muteToggle');
 
 let videoList = [];
-let startTimeUTC = 0;
-let isMuted = localStorage.getItem("muted") === "true";
-let currentVideoIndex = 0;
+let currentVideoIndex = -1;
+let isMuted = true;
+let currentSrc = null;
+let seekingInProgress = false;
+let syncInterval = null;
 
-const placeholderVideoURL = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm";
-
-function populateChannels() {
-  channels.forEach(ch => {
-    const option = document.createElement("option");
-    option.value = ch.json_url;
+// Init channel selector dropdown
+function populateChannelSelect() {
+  channels.forEach((ch, i) => {
+    const option = document.createElement('option');
+    option.value = i;
     option.textContent = ch.name;
-    option.style.color = "black";
-    channelSelector.appendChild(option);
+    option.style.color = 'black';
+    channelSelect.appendChild(option);
   });
 }
+populateChannelSelect();
 
-function setPlaceholder() {
-  videoPlayer.src = placeholderVideoURL;
+channelSelect.addEventListener('change', () => {
+  const selectedIndex = parseInt(channelSelect.value);
+  if (isNaN(selectedIndex) || !channels[selectedIndex]) {
+    clearVideo();
+    return;
+  }
+  loadChannel(selectedIndex);
+});
+
+function clearVideo() {
+  videoList = [];
+  currentVideoIndex = -1;
+  currentSrc = null;
+  seekingInProgress = false;
   videoPlayer.pause();
-  scrollingBanner.textContent = "No channel selected";
+  videoPlayer.removeAttribute('src');
+  videoPlayer.load();
+  scrollBanner.textContent = '';
+  setPlaceholder();
+  clearInterval(syncInterval);
+}
+
+// Placeholder video - YouTube embed with play button (iframe)
+function setPlaceholder() {
+  clearInterval(syncInterval);
+  videoPlayer.pause();
+  videoPlayer.removeAttribute('src');
+  videoPlayer.load();
+  scrollBanner.textContent = 'Please select a channel to start viewing.';
+}
+
+// Load JSON and start sync
+async function loadChannel(index) {
+  clearVideo();
+  try {
+    const resp = await fetch(channels[index].json_url, {cache: "no-store"});
+    if (!resp.ok) throw new Error('Failed to load playlist JSON');
+    const json = await resp.json();
+    if (!json.video_list || json.video_list.length === 0) throw new Error('Empty video list');
+
+    videoList = json.video_list;
+    currentVideoIndex = -1;
+    currentSrc = null;
+    seekingInProgress = false;
+
+    startSyncInterval();
+  } catch (e) {
+    alert('Error loading channel playlist: ' + e.message);
+    setPlaceholder();
+  }
+}
+
+function calculateSync() {
+  if (!videoList.length) return null;
+  const startTime = new Date(channels[channelSelect.value]?.json_url ? (new Date()) : 0); // fallback if no start_time_utc
+  try {
+    const startUTC = new Date(channels[channelSelect.value]?.start_time_utc || videoList[0].start_time_utc || 0);
+    if (!startUTC) return null;
+    const now = new Date();
+    let elapsedMs = now.getTime() - startUTC.getTime();
+    if (elapsedMs < 0) elapsedMs = 0;
+
+    let totalDuration = 0;
+    for (let i = 0; i < videoList.length; i++) {
+      totalDuration += videoList[i].duration_seconds;
+    }
+    elapsedMs = elapsedMs % (totalDuration * 1000);
+
+    let acc = 0;
+    for (let i = 0; i < videoList.length; i++) {
+      acc += videoList[i].duration_seconds * 1000;
+      if (elapsedMs < acc) {
+        return {
+          index: i,
+          elapsed: (elapsedMs - (acc - videoList[i].duration_seconds * 1000)) / 1000
+        };
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
 
 function updateMuteIcon() {
-  muteToggle.textContent = isMuted ? "🔇" : "🔊";
-}
-
-muteToggle.addEventListener("click", () => {
-  isMuted = !isMuted;
+  muteToggle.textContent = isMuted ? '🔇' : '🔊';
   videoPlayer.muted = isMuted;
-  localStorage.setItem("muted", isMuted);
-  updateMuteIcon();
-});
-
-// Core sync logic: calculate current video & elapsed position based on UTC time
-function calculateSync() {
-  if (!videoList.length) return null;
-
-  const now = Math.floor(Date.now() / 1000);
-  const totalDuration = videoList.reduce((sum, v) => sum + v.duration_seconds, 0);
-  let elapsed = (now - startTimeUTC) % totalDuration;
-
-  let index = 0;
-  while (elapsed >= videoList[index].duration_seconds) {
-    elapsed -= videoList[index].duration_seconds;
-    index = (index + 1) % videoList.length;
-  }
-  return { index, elapsed };
+  localStorage.setItem('mstv-muted', isMuted ? '1' : '0');
 }
 
-// Load & play synced video based on current time
+// Main sync function
 function playSyncedVideo() {
   if (!videoList.length) {
     setPlaceholder();
     return;
   }
-
   const sync = calculateSync();
   if (!sync) return;
 
-  // Only change src if video index changed
-  if (sync.index !== currentVideoIndex) {
-    currentVideoIndex = sync.index;
-    videoPlayer.src = videoList[currentVideoIndex].url;
-    scrollingBanner.textContent = videoList[currentVideoIndex].title;
-    videoPlayer.currentTime = sync.elapsed;
-    videoPlayer.play().catch(() => {});
+  const targetVideo = videoList[sync.index];
+  const targetSrc = targetVideo.url;
+  const targetTime = sync.elapsed;
+
+  if (currentSrc !== targetSrc) {
+    currentSrc = targetSrc;
+    seekingInProgress = true;
+
+    videoPlayer.src = targetSrc;
+    scrollBanner.textContent = targetVideo.title;
     videoPlayer.muted = isMuted;
     updateMuteIcon();
-  } else {
-    // Same video - only adjust currentTime if drift > 0.5 seconds (less sensitive)
-    const diff = Math.abs(videoPlayer.currentTime - sync.elapsed);
+
+    videoPlayer.addEventListener('loadedmetadata', function onLoad() {
+      videoPlayer.removeEventListener('loadedmetadata', onLoad);
+      videoPlayer.currentTime = targetTime;
+      videoPlayer.play().catch(() => {});
+      seekingInProgress = false;
+    });
+  } else if (!seekingInProgress) {
+    const diff = Math.abs(videoPlayer.currentTime - targetTime);
     if (diff > 0.5) {
-      videoPlayer.currentTime = sync.elapsed;
+      seekingInProgress = true;
+      videoPlayer.currentTime = targetTime;
+      setTimeout(() => {
+        seekingInProgress = false;
+      }, 500);
     }
   }
 }
 
-
-// When video ends, jump to next video respecting global sync
-videoPlayer.addEventListener("ended", () => {
-  // Just re-run playSyncedVideo() to jump to correct video by time
-  playSyncedVideo();
-});
-
-// Regularly check to keep player synced every second
-let syncInterval = null;
 function startSyncInterval() {
   if (syncInterval) clearInterval(syncInterval);
-  syncInterval = setInterval(playSyncedVideo, 1000);
+  syncInterval = setInterval(playSyncedVideo, 2000);
 }
 
-// Load JSON playlist & start playback
-async function loadChannel(jsonUrl) {
-  try {
-    const res = await fetch(jsonUrl);
-    const data = await res.json();
-    videoList = data.video_list;
-    startTimeUTC = Math.floor(new Date(data.start_time_utc).getTime() / 1000);
-    currentVideoIndex = 0;
-    scrollingBanner.textContent = "Loading...";
-    playSyncedVideo();
-    startSyncInterval();
-  } catch (err) {
-    console.error("Failed to load channel JSON:", err);
-    setPlaceholder();
-  }
-}
-
-channelSelector.addEventListener("change", () => {
-  if (channelSelector.value) {
-    loadChannel(channelSelector.value);
-  } else {
-    setPlaceholder();
-  }
+// Mute toggle click
+muteToggle.addEventListener('click', () => {
+  isMuted = !isMuted;
+  updateMuteIcon();
+  videoPlayer.muted = isMuted;
+  if (!videoPlayer.paused) videoPlayer.play().catch(() => {});
 });
 
-// Init
-populateChannels();
+// Load mute setting from localStorage
+(function loadMuteSetting() {
+  const stored = localStorage.getItem('mstv-muted');
+  isMuted = stored === '0' ? false : true;
+  updateMuteIcon();
+})();
+
+// Start placeholder on page load
 setPlaceholder();
-updateMuteIcon();
 
 </script>
-
 </body>
 </html>
