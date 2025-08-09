@@ -5,20 +5,40 @@
 <title>MSTV NETWORK</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-  body { margin:0; font-family: Arial,sans-serif; background:#111; color:#eee; }
-  header { text-align:center; font-size:24px; font-weight:bold; background:#222; padding:10px; }
-  .poster-grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(80px,1fr)); gap:5px; padding:10px; }
-  .poster-grid img { width:100%; border-radius:5px; }
-  .channel-select { text-align:center; padding:10px; }
-  select { padding:5px; font-size:16px; }
-  .player-container { position:relative; max-width:800px; margin:0 auto; background:#000; }
-  video { width:100%; height:450px; background:#000; }
-  .mute-toggle { position:absolute; top:10px; right:10px; background:rgba(0,0,0,0.6); border-radius:50%; padding:5px; cursor:pointer; font-size:20px; user-select:none; }
-  .facebook-link { text-align:center; padding:10px; }
-  .facebook-link a { color:#3b5998; font-size:18px; text-decoration:none; }
-  footer { background:#222; text-align:center; padding:15px; font-size:14px; margin-top:20px; }
-  .banner { background:#0055ff; padding:5px; white-space:nowrap; overflow:hidden; }
-  .banner span { display:inline-block; padding-left:100%; animation: scroll 15s linear infinite; }
+  body { font-family: Arial, sans-serif; background: #111; color: white; margin: 0; padding: 0; }
+  header { text-align: center; padding: 10px; font-size: 24px; font-weight: bold; background: #222; }
+  .poster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; padding: 10px; }
+  .poster-grid img { width: 100%; border-radius: 5px; }
+  .channel-select { text-align: center; padding: 10px; }
+  select {
+    padding: 5px;
+    font-size: 16px;
+    color: gold;
+    background: #222;
+    border: 1px solid gold;
+    cursor: pointer;
+  }
+  select option {
+    color: black;
+  }
+  .player-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: black; }
+  iframe, video { width: 100%; height: 450px; }
+  .mute-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 50%;
+    padding: 5px;
+    cursor: pointer;
+    font-size: 20px;
+    user-select: none;
+  }
+  .facebook-link { text-align: center; padding: 10px; }
+  .facebook-link a { color: #3b5998; font-size: 18px; text-decoration: none; }
+  footer { background: #222; text-align: center; padding: 15px; font-size: 14px; margin-top: 20px; }
+  .banner { background: #0055ff; padding: 5px; white-space: nowrap; overflow: hidden; height: 24px; line-height: 24px; }
+  .banner span { display: inline-block; padding-left: 100%; animation: scroll 15s linear infinite; }
   @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 </style>
 </head>
@@ -27,25 +47,26 @@
 <header>MSTV NETWORK</header>
 
 <div class="poster-grid">
-  <img src="https://via.placeholder.com/150x80?text=Poster1" />
-  <img src="https://via.placeholder.com/150x80?text=Poster2" />
-  <img src="https://via.placeholder.com/150x80?text=Poster3" />
-  <img src="https://via.placeholder.com/150x80?text=Poster4" />
+  <img src="https://via.placeholder.com/150x80?text=Poster1" alt="Poster 1" />
+  <img src="https://via.placeholder.com/150x80?text=Poster2" alt="Poster 2" />
+  <img src="https://via.placeholder.com/150x80?text=Poster3" alt="Poster 3" />
+  <img src="https://via.placeholder.com/150x80?text=Poster4" alt="Poster 4" />
 </div>
 
 <div class="channel-select">
-  <label for="channelSelector">Select Channel:</label>
-  <select id="channelSelector"></select>
+  <select id="channelSelector">
+    <option value="" selected disabled style="color:gold;">Click select channels</option>
+  </select>
 </div>
 
 <div class="player-container">
-  <video id="videoPlayer" playsinline></video>
-  <div id="muteToggle" class="mute-toggle">🔊</div>
-  <div class="banner"><span id="scrollingBanner"></span></div>
+  <div class="mute-toggle" id="muteToggle" title="Toggle mute">🔊</div>
+  <div id="player"></div>
+  <div class="banner"><span id="scrollingBanner">No channel selected</span></div>
 </div>
 
 <div class="facebook-link">
-  <a href="https://facebook.com" target="_blank" rel="noopener">📘 Click here to follow</a>
+  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer">📘 Click here to follow</a>
 </div>
 
 <footer>
@@ -53,6 +74,7 @@
   <p>&copy; 2025 MSTV Network. All Rights Reserved.</p>
 </footer>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const channels = [
   {
@@ -65,44 +87,49 @@ const channels = [
   }
 ];
 
-const videoPlayer = document.getElementById("videoPlayer");
-const channelSelector = document.getElementById("channelSelector");
-const muteToggle = document.getElementById("muteToggle");
-const scrollingBanner = document.getElementById("scrollingBanner");
-
+let player;
 let videoList = [];
 let startTimeUTC = 0;
 let isMuted = localStorage.getItem("muted") === "true";
-videoPlayer.muted = isMuted;
-muteToggle.textContent = isMuted ? "🔇" : "🔊";
 
-// Fill channel dropdown
+// Placeholder video ID when no channel is selected
+const placeholderVideoId = "dQw4w9WgXcQ"; // change to any YouTube video ID you like
+
+// Populate dropdown
+const channelSelector = document.getElementById("channelSelector");
 channels.forEach(ch => {
-  const opt = document.createElement("option");
-  opt.value = ch.json_url;
-  opt.textContent = ch.name;
-  channelSelector.appendChild(opt);
+  const option = document.createElement("option");
+  option.value = ch.json_url;
+  option.textContent = ch.name;
+  option.style.color = "black";
+  channelSelector.appendChild(option);
 });
 
-// Load and start playback for selected channel
-async function loadChannel(jsonUrl) {
-  try {
-    const res = await fetch(jsonUrl);
-    const data = await res.json();
-    videoList = data.video_list;
-    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-    playGlobalSync();
-  } catch (e) {
-    console.error("Failed to load channel JSON:", e);
-  }
+// Initialize YouTube Player with placeholder
+function initPlayer() {
+  player = new YT.Player("player", {
+    videoId: placeholderVideoId,
+    playerVars: { autoplay: 0, controls: 1 },
+    events: {
+      onReady: (event) => {
+        if (isMuted) {
+          event.target.mute();
+          document.getElementById("muteToggle").textContent = "🔇";
+        } else {
+          event.target.unMute();
+          document.getElementById("muteToggle").textContent = "🔊";
+        }
+      }
+    }
+  });
 }
 
-// Calculate which video to play & seek time
-function playGlobalSync() {
+// Global sync logic to play selected channel video at correct position
+function startGlobalSync() {
   if (!videoList.length) return;
 
   const now = Math.floor(Date.now() / 1000);
-  const totalDuration = videoList.reduce((acc, v) => acc + v.duration_seconds, 0);
+  const totalDuration = videoList.reduce((sum, v) => sum + v.duration_seconds, 0);
   let elapsed = (now - startTimeUTC) % totalDuration;
 
   let index = 0;
@@ -111,45 +138,59 @@ function playGlobalSync() {
     index = (index + 1) % videoList.length;
   }
 
-  // Update banner with current video title
-  scrollingBanner.textContent = videoList[index].title;
+  const videoId = videoList[index].id;
+  const seekTo = elapsed;
+  document.getElementById("scrollingBanner").textContent = videoList[index].title;
 
-  // Set video source and seek
-  const currentVideo = videoList[index];
-  if (videoPlayer.src !== currentVideo.url) {
-    videoPlayer.src = currentVideo.url;
+  if (player && typeof player.loadVideoById === "function") {
+    player.loadVideoById({ videoId: videoId, startSeconds: seekTo });
+    if (isMuted) player.mute(); else player.unMute();
   }
-
-  videoPlayer.currentTime = elapsed;
-  videoPlayer.play().catch(() => {
-    // Autoplay might fail without user interaction
-  });
 }
 
-// When video ends, play next video
-videoPlayer.addEventListener("ended", () => {
-  // Just call playGlobalSync to jump to next video in loop
-  playGlobalSync();
-});
+// Load selected channel's JSON and start playback
+async function loadChannel(jsonUrl) {
+  try {
+    const response = await fetch(jsonUrl);
+    const data = await response.json();
+    videoList = data.video_list;
+    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
+    startGlobalSync();
+  } catch (error) {
+    console.error("Error loading channel:", error);
+  }
+}
 
-// Channel selector change
+// Channel selector event
 channelSelector.addEventListener("change", () => {
-  loadChannel(channelSelector.value);
+  if (channelSelector.value) {
+    loadChannel(channelSelector.value);
+  } else {
+    // If somehow reset to no selection, show placeholder video
+    document.getElementById("scrollingBanner").textContent = "No channel selected";
+    player.loadVideoById({ videoId: placeholderVideoId, startSeconds: 0 });
+  }
 });
 
 // Mute toggle
-muteToggle.addEventListener("click", () => {
+document.getElementById("muteToggle").addEventListener("click", () => {
   isMuted = !isMuted;
-  videoPlayer.muted = isMuted;
   localStorage.setItem("muted", isMuted);
-  muteToggle.textContent = isMuted ? "🔇" : "🔊";
+  if (player) {
+    if (isMuted) {
+      player.mute();
+      document.getElementById("muteToggle").textContent = "🔇";
+    } else {
+      player.unMute();
+      document.getElementById("muteToggle").textContent = "🔊";
+    }
+  }
 });
 
-// Load first channel on page load
-window.addEventListener("DOMContentLoaded", () => {
-  channelSelector.selectedIndex = 0;
-  loadChannel(channels[0].json_url);
-});
+// Wait for YouTube API then init player with placeholder
+function onYouTubeIframeAPIReady() {
+  initPlayer();
+}
 </script>
 
 </body>
