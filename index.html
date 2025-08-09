@@ -167,7 +167,6 @@
 
 <div class="container">
   <div class="img-grid" id="imgGrid">
-    <!-- Replace these sample images with your own -->
     <img src="https://picsum.photos/id/1015/300/180" alt="Sample Image 1" />
     <img src="https://picsum.photos/id/1016/300/180" alt="Sample Image 2" />
     <img src="https://picsum.photos/id/1018/300/180" alt="Sample Image 3" />
@@ -208,8 +207,9 @@
 
   let playlist = [];
   let globalStartTimeUTC = null;
-  let playingIndex = 0;
+  let playingIndex = -1; // Initialized to -1 to ensure first video loads
   let totalDuration = 0;
+  let syncIntervalId = null;
 
   // Mute toggle and persistence
   function updateMuteIcon() {
@@ -238,7 +238,9 @@
       playlist = data.video_list || [];
       totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
 
-      syncAndPlay();
+      if (playlist.length > 0) {
+        syncAndPlay();
+      }
     } catch (e) {
       console.error('Error loading JSON:', e);
       alert('Failed to load playlist. See console.');
@@ -259,9 +261,19 @@
     for (let i = 0; i < playlist.length; i++) {
       cumSum += playlist[i].duration_seconds;
       if (elapsed < cumSum) {
-        playingIndex = i;
-        let offset = elapsed - (cumSum - playlist[i].duration_seconds);
-        playVideoAt(playingIndex, offset);
+        const offset = elapsed - (cumSum - playlist[i].duration_seconds);
+        
+        // Only update if the video index or the offset is significantly different
+        if (i !== playingIndex) {
+          playingIndex = i;
+          playVideoAt(playingIndex, offset);
+        } else {
+          // Check if current time is far from the synced time (e.g., more than 2 seconds)
+          const currentTime = video.currentTime;
+          if (Math.abs(currentTime - offset) > 2) {
+            video.currentTime = offset;
+          }
+        }
         break;
       }
     }
@@ -271,15 +283,28 @@
   function playVideoAt(i, offset) {
     if (!playlist[i]) return;
     const v = playlist[i];
-    if(video.src !== v.url) {
+    
+    // Check if the video source needs to be changed
+    if (video.src !== v.url) {
       video.src = v.url;
+      // Set the offset only after the video is loaded
+      video.onloadeddata = () => {
+        video.currentTime = offset;
+        video.play().catch(e => {
+          console.log('Autoplay failed, muting and trying again:', e);
+          video.muted = true;
+          video.play();
+        });
+      };
+    } else {
+      // If the source is the same, just adjust the time
+      video.currentTime = offset;
+      video.play().catch(e => {
+        console.log('Autoplay failed, muting and trying again:', e);
+        video.muted = true;
+        video.play();
+      });
     }
-    video.currentTime = offset;
-
-    video.play().catch(() => {
-      video.muted = true;
-      video.play();
-    });
 
     video.onended = () => {
       playingIndex = (playingIndex + 1) % playlist.length;
@@ -287,9 +312,18 @@
     };
   }
 
+  // Initial setup and event listeners
   loadMuteState();
   loadJSON();
-  setInterval(syncAndPlay, 10_000);
+
+  // Add event listener for when the video is played
+  video.onplaying = () => {
+    // Only set up the timer once the video is playing
+    // This allows for a smoother transition
+    if (!syncIntervalId) {
+      syncIntervalId = setInterval(syncAndPlay, 5_000); // Check for sync every 5 seconds
+    }
+  };
 })();
 </script>
 
