@@ -1,184 +1,153 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Global Sync MP4 Player (Multichannel)</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #000;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-    #video {
-      width: 100%;
-      height: 100vh;
-      background: black;
-      object-fit: contain;
-    }
-    #mute-toggle {
-      position: absolute;
-      top: 8px; right: 8px;
-      font-size: 24px;
-      background: rgba(0,0,0,0.6);
-      border-radius: 50%;
-      padding: 6px;
-      cursor: pointer;
-      z-index: 10;
-    }
-    #scrolling-banner {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
-      background: #007BFF;
-      color: white;
-      font-size: clamp(14px, 3vw, 20px);
-      font-weight: bold;
-      font-family: monospace;
-      overflow: hidden;
-      padding: 8px 0;
-      z-index: 10;
-      pointer-events: none;
-    }
-    #marquee-text {
-      display: inline-block;
-      white-space: nowrap;
-      padding-left: 100%;
-      animation: marquee 15s linear infinite;
-    }
-    @keyframes marquee {
-      0% { transform: translateX(0%); }
-      100% { transform: translateX(-100%); }
-    }
-    #loading-overlay {
-      position: fixed;
-      inset: 0;
-      background-color: #000;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-    }
-    #loading-spinner {
-      width: 60px;
-      height: 60px;
-      border: 3px solid rgba(255, 215, 0, 0.2);
-      border-top: 3px solid #FFD700;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 16px;
-      box-shadow: 0 0 10px #FFD70088;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    #loading-text {
-      color: #FFD700;
-      font-size: 20px;
-      font-weight: 600;
-      font-family: "Courier New", monospace;
-      text-shadow: 0 0 6px #FFD70099;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>MSTV NETWORK</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  body { font-family: Arial, sans-serif; background: #111; color: white; margin: 0; padding: 0; }
+  header { text-align: center; padding: 10px; font-size: 24px; font-weight: bold; background: #222; }
+  .poster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; padding: 10px; }
+  .poster-grid img { width: 100%; border-radius: 5px; }
+  .channel-select { text-align: center; padding: 10px; }
+  select { padding: 5px; font-size: 16px; }
+  .player-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: black; }
+  iframe, video { width: 100%; height: 450px; }
+  .mute-toggle { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border-radius: 50%; padding: 5px; cursor: pointer; font-size: 20px; }
+  .facebook-link { text-align: center; padding: 10px; }
+  .facebook-link a { color: #3b5998; font-size: 18px; text-decoration: none; }
+  footer { background: #222; text-align: center; padding: 15px; font-size: 14px; margin-top: 20px; }
+  .banner { background: #0055ff; padding: 5px; white-space: nowrap; overflow: hidden; }
+  .banner span { display: inline-block; padding-left: 100%; animation: scroll 15s linear infinite; }
+  @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+</style>
 </head>
 <body>
 
-  <video id="video" autoplay muted playsinline></video>
-  <div id="mute-toggle">🔇</div>
-  <div id="scrolling-banner">
-    <div id="marquee-text">Loading...</div>
-  </div>
+<header>MSTV NETWORK</header>
 
-  <div id="loading-overlay">
-    <div id="loading-spinner"></div>
-    <div id="loading-text">Stream Loading...</div>
-  </div>
+<div class="poster-grid">
+  <img src="https://via.placeholder.com/150x80?text=Poster1">
+  <img src="https://via.placeholder.com/150x80?text=Poster2">
+  <img src="https://via.placeholder.com/150x80?text=Poster3">
+  <img src="https://via.placeholder.com/150x80?text=Poster4">
+</div>
 
-  <script>
-    const video = document.getElementById("video");
-    const marquee = document.getElementById("marquee-text");
-    const muteToggle = document.getElementById("mute-toggle");
-    const overlay = document.getElementById("loading-overlay");
+<div class="channel-select">
+  <label for="channelSelector">Select Channel:</label>
+  <select id="channelSelector"></select>
+</div>
 
-    const ch = new URLSearchParams(location.search).get("ch") || "1";
-    const jsonUrl = `sync-ch${ch}.json`;
+<div class="player-container">
+  <div class="mute-toggle" id="muteToggle">🔊</div>
+  <div id="player"></div>
+  <div class="banner"><span id="scrollingBanner"></span></div>
+</div>
 
-    let playlist = [];
-    let startTimeUTC = 0;
-    let currentIndex = 0;
-    let currentSeek = 0;
-    let isMuted = true;
+<div class="facebook-link">
+  <a href="https://facebook.com" target="_blank">📘 Click here to follow</a>
+</div>
 
-    // Load mute preference
-    const muteKey = "mp4PlayerMuted";
-    if (sessionStorage.getItem(muteKey) === "false") {
-      isMuted = false;
-      muteToggle.textContent = "🔊";
-    }
+<footer>
+  <p>About Us: MSTV Network brings you globally synced live-style programming 24/7.</p>
+  <p>&copy; 2025 MSTV Network. All Rights Reserved.</p>
+</footer>
 
-    muteToggle.addEventListener("click", () => {
-      isMuted = !isMuted;
-      video.muted = isMuted;
-      muteToggle.textContent = isMuted ? "🔇" : "🔊";
-      sessionStorage.setItem(muteKey, isMuted ? "true" : "false");
-    });
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const channels = [
+  {
+    name: "MSTV Channel 1",
+    json_url: "https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch1.json"
+  },
+  {
+    name: "MSTV Channel 2",
+    json_url: "https://raw.githubusercontent.com/mstvnetwork/mstv1/main/sync-ch2.json"
+  }
+];
 
-    fetch(jsonUrl)
-      .then(res => res.json())
-      .then(data => {
-        playlist = data.video_list;
-        startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-        syncAndPlay();
-        setInterval(syncAndPlay, 30000); // periodic resync
-      });
+let player;
+let videoList = [];
+let startTimeUTC = 0;
+let isMuted = localStorage.getItem("muted") === "true";
 
-    function syncAndPlay() {
-      if (!playlist.length || !startTimeUTC) return;
+// Populate dropdown
+const channelSelector = document.getElementById("channelSelector");
+channels.forEach((ch) => {
+  const option = document.createElement("option");
+  option.value = ch.json_url;
+  option.textContent = ch.name;
+  channelSelector.appendChild(option);
+});
 
-      const now = Date.now() / 1000;
-      const elapsed = now - startTimeUTC;
-      const totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
-      const loopTime = elapsed % totalDuration;
+// Load channel JSON and start playback
+async function loadChannel(jsonUrl) {
+  try {
+    const response = await fetch(jsonUrl);
+    const data = await response.json();
+    videoList = data.video_list;
+    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
+    startGlobalSync();
+  } catch (error) {
+    console.error("Error loading channel:", error);
+  }
+}
 
-      let acc = 0;
-      for (let i = 0; i < playlist.length; i++) {
-        const dur = playlist[i].duration_seconds;
-        if (loopTime < acc + dur) {
-          currentIndex = i;
-          currentSeek = Math.floor(loopTime - acc);
-          break;
+// Global sync logic
+function startGlobalSync() {
+  const now = Math.floor(Date.now() / 1000);
+  let elapsed = (now - startTimeUTC) % videoList.reduce((a, b) => a + b.duration_seconds, 0);
+
+  let index = 0;
+  while (elapsed >= videoList[index].duration_seconds) {
+    elapsed -= videoList[index].duration_seconds;
+    index = (index + 1) % videoList.length;
+  }
+
+  const videoId = videoList[index].id;
+  const seekTo = elapsed;
+  document.getElementById("scrollingBanner").textContent = videoList[index].title;
+
+  if (player && typeof player.loadVideoById === "function") {
+    player.loadVideoById({ videoId: videoId, startSeconds: seekTo });
+    if (isMuted) player.mute(); else player.unMute();
+  } else {
+    player = new YT.Player("player", {
+      videoId: videoId,
+      playerVars: { autoplay: 1, controls: 0, start: seekTo },
+      events: {
+        onReady: (event) => {
+          if (isMuted) event.target.mute(); else event.target.unMute();
+        },
+        onStateChange: (event) => {
+          if (event.data === YT.PlayerState.ENDED) startGlobalSync();
         }
-        acc += dur;
       }
+    });
+  }
+}
 
-      playVideo(playlist[currentIndex], currentSeek);
-    }
+// Channel change event
+channelSelector.addEventListener("change", () => {
+  loadChannel(channelSelector.value);
+});
 
-    function playVideo(videoItem, seekTime) {
-      marquee.textContent = "Now Playing: " + videoItem.title;
-      overlay.style.display = "flex";
-      video.src = videoItem.url;
-      video.load();
+// Auto-load first channel
+window.addEventListener("DOMContentLoaded", () => {
+  channelSelector.selectedIndex = 0;
+  loadChannel(channels[0].json_url);
+});
 
-      video.onloadedmetadata = () => {
-        const safeSeek = Math.min(seekTime, video.duration - 1);
-        video.currentTime = safeSeek;
-        video.play().then(() => {
-          overlay.style.display = "none";
-        }).catch(console.warn);
-      };
-
-      video.onerror = () => {
-        marquee.textContent = "⚠️ Video failed to load.";
-        overlay.style.display = "none";
-      };
-    }
-
-    video.onended = () => {
-      syncAndPlay();
-    };
-  </script>
+// Mute toggle
+document.getElementById("muteToggle").addEventListener("click", () => {
+  isMuted = !isMuted;
+  localStorage.setItem("muted", isMuted);
+  if (player) {
+    if (isMuted) player.mute(); else player.unMute();
+  }
+  document.getElementById("muteToggle").textContent = isMuted ? "🔇" : "🔊";
+});
+</script>
 
 </body>
 </html>
