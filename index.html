@@ -22,7 +22,7 @@
     color: black;
   }
   .player-container { position: relative; width: 100%; max-width: 800px; margin: 0 auto; background: black; }
-  iframe, video { width: 100%; height: 450px; }
+  video { width: 100%; height: 450px; background: black; }
   .mute-toggle {
     position: absolute;
     top: 10px;
@@ -33,13 +33,29 @@
     cursor: pointer;
     font-size: 20px;
     user-select: none;
+    color: white;
   }
   .facebook-link { text-align: center; padding: 10px; }
   .facebook-link a { color: #3b5998; font-size: 18px; text-decoration: none; }
   footer { background: #222; text-align: center; padding: 15px; font-size: 14px; margin-top: 20px; }
-  .banner { background: #0055ff; padding: 5px; white-space: nowrap; overflow: hidden; height: 24px; line-height: 24px; }
-  .banner span { display: inline-block; padding-left: 100%; animation: scroll 15s linear infinite; }
-  @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+  .banner {
+    background: #0055ff;
+    padding: 5px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    height: 24px;
+    line-height: 24px;
+    font-weight: bold;
+  }
+  .banner span {
+    display: inline-block;
+    padding-left: 100%;
+    animation: scroll 15s linear infinite;
+  }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+  }
 </style>
 </head>
 <body>
@@ -60,8 +76,8 @@
 </div>
 
 <div class="player-container">
+  <video id="videoPlayer" controls playsinline></video>
   <div class="mute-toggle" id="muteToggle" title="Toggle mute">🔊</div>
-  <div id="player"></div>
   <div class="banner"><span id="scrollingBanner">No channel selected</span></div>
 </div>
 
@@ -74,7 +90,6 @@
   <p>&copy; 2025 MSTV Network. All Rights Reserved.</p>
 </footer>
 
-<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 const channels = [
   {
@@ -87,46 +102,48 @@ const channels = [
   }
 ];
 
-let player;
+const videoPlayer = document.getElementById("videoPlayer");
+const channelSelector = document.getElementById("channelSelector");
+const muteToggle = document.getElementById("muteToggle");
+const scrollingBanner = document.getElementById("scrollingBanner");
+
 let videoList = [];
 let startTimeUTC = 0;
 let isMuted = localStorage.getItem("muted") === "true";
+let currentVideoIndex = 0;
 
-// Placeholder video ID when no channel is selected
-const placeholderVideoId = "dQw4w9WgXcQ"; // change to any YouTube video ID you like
+const placeholderVideoURL = "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm";
 
-// Populate dropdown
-const channelSelector = document.getElementById("channelSelector");
-channels.forEach(ch => {
-  const option = document.createElement("option");
-  option.value = ch.json_url;
-  option.textContent = ch.name;
-  option.style.color = "black";
-  channelSelector.appendChild(option);
-});
-
-// Initialize YouTube Player with placeholder
-function initPlayer() {
-  player = new YT.Player("player", {
-    videoId: placeholderVideoId,
-    playerVars: { autoplay: 0, controls: 1 },
-    events: {
-      onReady: (event) => {
-        if (isMuted) {
-          event.target.mute();
-          document.getElementById("muteToggle").textContent = "🔇";
-        } else {
-          event.target.unMute();
-          document.getElementById("muteToggle").textContent = "🔊";
-        }
-      }
-    }
+function populateChannels() {
+  channels.forEach(ch => {
+    const option = document.createElement("option");
+    option.value = ch.json_url;
+    option.textContent = ch.name;
+    option.style.color = "black";
+    channelSelector.appendChild(option);
   });
 }
 
-// Global sync logic to play selected channel video at correct position
-function startGlobalSync() {
-  if (!videoList.length) return;
+function setPlaceholder() {
+  videoPlayer.src = placeholderVideoURL;
+  videoPlayer.pause();
+  scrollingBanner.textContent = "No channel selected";
+}
+
+function updateMuteIcon() {
+  muteToggle.textContent = isMuted ? "🔇" : "🔊";
+}
+
+muteToggle.addEventListener("click", () => {
+  isMuted = !isMuted;
+  videoPlayer.muted = isMuted;
+  localStorage.setItem("muted", isMuted);
+  updateMuteIcon();
+});
+
+// Core sync logic: calculate current video & elapsed position based on UTC time
+function calculateSync() {
+  if (!videoList.length) return null;
 
   const now = Math.floor(Date.now() / 1000);
   const totalDuration = videoList.reduce((sum, v) => sum + v.duration_seconds, 0);
@@ -137,60 +154,79 @@ function startGlobalSync() {
     elapsed -= videoList[index].duration_seconds;
     index = (index + 1) % videoList.length;
   }
+  return { index, elapsed };
+}
 
-  const videoId = videoList[index].id;
-  const seekTo = elapsed;
-  document.getElementById("scrollingBanner").textContent = videoList[index].title;
+// Load & play synced video based on current time
+function playSyncedVideo() {
+  if (!videoList.length) {
+    setPlaceholder();
+    return;
+  }
 
-  if (player && typeof player.loadVideoById === "function") {
-    player.loadVideoById({ videoId: videoId, startSeconds: seekTo });
-    if (isMuted) player.mute(); else player.unMute();
+  const sync = calculateSync();
+  if (!sync) return;
+
+  if (sync.index !== currentVideoIndex) {
+    currentVideoIndex = sync.index;
+    videoPlayer.src = videoList[currentVideoIndex].url;
+    scrollingBanner.textContent = videoList[currentVideoIndex].title;
+    videoPlayer.currentTime = sync.elapsed;
+    videoPlayer.play().catch(() => {});
+    videoPlayer.muted = isMuted;
+    updateMuteIcon();
+  } else {
+    // Same video, just ensure time synced
+    const diff = Math.abs(videoPlayer.currentTime - sync.elapsed);
+    if (diff > 1) {
+      videoPlayer.currentTime = sync.elapsed;
+    }
   }
 }
 
-// Load selected channel's JSON and start playback
+// When video ends, jump to next video respecting global sync
+videoPlayer.addEventListener("ended", () => {
+  // Just re-run playSyncedVideo() to jump to correct video by time
+  playSyncedVideo();
+});
+
+// Regularly check to keep player synced every second
+let syncInterval = null;
+function startSyncInterval() {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(playSyncedVideo, 1000);
+}
+
+// Load JSON playlist & start playback
 async function loadChannel(jsonUrl) {
   try {
-    const response = await fetch(jsonUrl);
-    const data = await response.json();
+    const res = await fetch(jsonUrl);
+    const data = await res.json();
     videoList = data.video_list;
-    startTimeUTC = new Date(data.start_time_utc).getTime() / 1000;
-    startGlobalSync();
-  } catch (error) {
-    console.error("Error loading channel:", error);
+    startTimeUTC = Math.floor(new Date(data.start_time_utc).getTime() / 1000);
+    currentVideoIndex = 0;
+    scrollingBanner.textContent = "Loading...";
+    playSyncedVideo();
+    startSyncInterval();
+  } catch (err) {
+    console.error("Failed to load channel JSON:", err);
+    setPlaceholder();
   }
 }
 
-// Channel selector event
 channelSelector.addEventListener("change", () => {
   if (channelSelector.value) {
     loadChannel(channelSelector.value);
   } else {
-    // If somehow reset to no selection, show placeholder video
-    document.getElementById("scrollingBanner").textContent = "No channel selected";
-    player.loadVideoById({ videoId: placeholderVideoId, startSeconds: 0 });
+    setPlaceholder();
   }
 });
 
-// Mute toggle
-document.getElementById("muteToggle").addEventListener("click", () => {
-  isMuted = !isMuted;
-  localStorage.setItem("muted", isMuted);
-  if (player) {
-    if (isMuted) {
-      player.mute();
-      document.getElementById("muteToggle").textContent = "🔇";
-    } else {
-      player.unMute();
-      document.getElementById("muteToggle").textContent = "🔊";
-    }
-  }
-});
+// Init
+populateChannels();
+setPlaceholder();
+updateMuteIcon();
 
-// Wait for YouTube API then init player with placeholder
-function onYouTubeIframeAPIReady() {
-  initPlayer();
-}
 </script>
 
 </body>
