@@ -103,7 +103,8 @@
   </select>
 
   <div id="videoContainer">
-    <video id="videoPlayer" playsinline controls></video>
+    <!-- Added preload="auto" for better buffering -->
+    <video id="videoPlayer" playsinline controls preload="auto"></video>
     <div id="muteToggle" title="Toggle Mute">🔇</div>
   </div>
 
@@ -211,9 +212,8 @@ async function loadChannel(index) {
 
 function calculateSync() {
   if (!videoList.length) return null;
-  const startTime = new Date(channels[channelSelect.value]?.json_url ? (new Date()) : 0); // fallback if no start_time_utc
   try {
-    const startUTC = new Date(channels[channelSelect.value]?.start_time_utc || videoList[0].start_time_utc || 0);
+    const startUTC = new Date(videoList[0].start_time_utc || 0);
     if (!startUTC) return null;
     const now = new Date();
     let elapsedMs = now.getTime() - startUTC.getTime();
@@ -247,7 +247,7 @@ function updateMuteIcon() {
   localStorage.setItem('mstv-muted', isMuted ? '1' : '0');
 }
 
-// Main sync function
+// Main sync function with improved playback logic
 function playSyncedVideo() {
   if (!videoList.length) {
     setPlaceholder();
@@ -260,31 +260,37 @@ function playSyncedVideo() {
   const targetSrc = targetVideo.url;
   const targetTime = sync.elapsed;
 
-const SEEK_THRESHOLD = 1.0; // seconds, increase tolerance
+  const SEEK_THRESHOLD = 2.5; // Increased tolerance from 1.0 to 2.5 seconds
 
-if (currentSrc !== targetSrc) {
-  currentSrc = targetSrc;
-  seekingInProgress = true;
-
-  videoPlayer.src = targetSrc;
-  scrollBanner.textContent = targetVideo.title;
-  videoPlayer.muted = isMuted;
-  updateMuteIcon();
-
-  videoPlayer.addEventListener('loadedmetadata', function onLoad() {
-    videoPlayer.removeEventListener('loadedmetadata', onLoad);
-    videoPlayer.currentTime = targetTime;
-    videoPlayer.play().catch(() => {});
-    seekingInProgress = false;
-  });
-} else if (!seekingInProgress) {
-  const diff = Math.abs(videoPlayer.currentTime - targetTime);
-  if (diff > SEEK_THRESHOLD) {
+  if (currentSrc !== targetSrc) {
+    currentSrc = targetSrc;
     seekingInProgress = true;
-    videoPlayer.currentTime = targetTime;
-    setTimeout(() => {
+
+    videoPlayer.src = targetSrc;
+    videoPlayer.preload = 'auto'; // Ensure preload is set
+    videoPlayer.load(); // Force load the new src
+
+    scrollBanner.textContent = targetVideo.title;
+    videoPlayer.muted = isMuted;
+    updateMuteIcon();
+
+    // Use 'canplay' event instead of 'loadedmetadata' for better playback readiness
+    videoPlayer.addEventListener('canplay', function onCanPlay() {
+      videoPlayer.removeEventListener('canplay', onCanPlay);
+      videoPlayer.currentTime = targetTime;
+      videoPlayer.play().catch(() => {});
       seekingInProgress = false;
-    }, 1000);
+    });
+
+  } else if (!seekingInProgress) {
+    const diff = Math.abs(videoPlayer.currentTime - targetTime);
+    if (diff > SEEK_THRESHOLD) {
+      seekingInProgress = true;
+      videoPlayer.currentTime = targetTime;
+      setTimeout(() => {
+        seekingInProgress = false;
+      }, 1500); // Increased timeout to 1.5s for buffering
+    }
   }
 }
 
