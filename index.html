@@ -17,23 +17,19 @@
     text-shadow: 0 0 10px #ffd700;
   }
   .container {
-    display: flex;
     max-width: 1200px;
     margin: 1rem auto;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
+    padding: 0 1rem;
   }
   .img-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: 0.5rem;
-    width: 60%;
-    min-width: 300px;
+    margin: 1rem 0;
   }
   .img-grid img {
     width: 100%;
-    height: 80px;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     border-radius: 6px;
     cursor: pointer;
@@ -42,33 +38,6 @@
   }
   .img-grid img:hover {
     filter: brightness(1);
-  }
-  .channel-selector {
-    width: 30%;
-    min-width: 220px;
-    background: #222;
-    border-radius: 10px;
-    padding: 1rem;
-    color: #ffd700;
-    font-weight: bold;
-    font-size: 1.2rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  select {
-    margin-top: 0.8rem;
-    padding: 0.6rem;
-    font-size: 1rem;
-    background: #333;
-    color: #ffd700;
-    border: none;
-    border-radius: 6px;
-    cursor: not-allowed; /* Disabled */
-  }
-  select option {
-    background: #333;
-    color: #ffd700;
   }
   #player-container {
     max-width: 1200px;
@@ -142,23 +111,6 @@
   footer a:hover {
     text-decoration: underline;
   }
-  @media (max-width: 768px) {
-    .container {
-      flex-direction: column;
-      width: 95%;
-    }
-    .img-grid {
-      width: 100%;
-      grid-template-columns: repeat(2, 1fr);
-    }
-    .channel-selector {
-      width: 100%;
-      margin-top: 1rem;
-    }
-    #player-container {
-      width: 95%;
-    }
-  }
 </style>
 </head>
 <body>
@@ -174,11 +126,11 @@
     <img src="https://picsum.photos/id/1024/300/180" alt="Sample Image 5" />
     <img src="https://picsum.photos/id/1027/300/180" alt="Sample Image 6" />
   </div>
-  
+</div>
 
 <div id="player-container">
   <video id="videoPlayer" playsinline></video>
-  <div id="mute-toggle" title="Mute/Unmute">🔊</div>
+  <div id="mute-toggle" title="Mute/Unmute">🔇</div>
 </div>
 
 <div id="fb-follow" title="Click to follow on Facebook" onclick="window.open('https://facebook.com/yourpage','_blank')">
@@ -201,13 +153,13 @@
 
   let playlist = [];
   let globalStartTimeUTC = null;
-  let playingIndex = -1; // Initialized to -1 to ensure first video loads
+  let playingIndex = -1;
   let totalDuration = 0;
   let syncIntervalId = null;
 
   // Mute toggle and persistence
   function updateMuteIcon() {
-    muteToggle.textContent = video.muted ? '🔊' : '🔇';
+    muteToggle.textContent = video.muted ? '🔇' : '🔊';
   }
   function loadMuteState() {
     const saved = localStorage.getItem('mstv_mute_state');
@@ -257,12 +209,10 @@
       if (elapsed < cumSum) {
         const offset = elapsed - (cumSum - playlist[i].duration_seconds);
         
-        // Only update if the video index or the offset is significantly different
         if (i !== playingIndex) {
           playingIndex = i;
           playVideoAt(playingIndex, offset);
         } else {
-          // Check if current time is far from the synced time (e.g., more than 2 seconds)
           const currentTime = video.currentTime;
           if (Math.abs(currentTime - offset) > 2) {
             video.currentTime = offset;
@@ -278,10 +228,8 @@
     if (!playlist[i]) return;
     const v = playlist[i];
     
-    // Check if the video source needs to be changed
     if (video.src !== v.url) {
       video.src = v.url;
-      // Set the offset only after the video is loaded
       video.onloadeddata = () => {
         video.currentTime = offset;
         video.play().catch(e => {
@@ -291,7 +239,6 @@
         });
       };
     } else {
-      // If the source is the same, just adjust the time
       video.currentTime = offset;
       video.play().catch(e => {
         console.log('Autoplay failed, muting and trying again:', e);
@@ -310,12 +257,9 @@
   loadMuteState();
   loadJSON();
 
-  // Add event listener for when the video is played
   video.onplaying = () => {
-    // Only set up the timer once the video is playing
-    // This allows for a smoother transition
     if (!syncIntervalId) {
-      syncIntervalId = setInterval(syncAndPlay, 5_000); // Check for sync every 5 seconds
+      syncIntervalId = setInterval(syncAndPlay, 5_000);
     }
   };
 })();
