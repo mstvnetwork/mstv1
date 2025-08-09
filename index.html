@@ -167,6 +167,7 @@ function playSyncedVideo() {
   const sync = calculateSync();
   if (!sync) return;
 
+  // Only change src if video index changed
   if (sync.index !== currentVideoIndex) {
     currentVideoIndex = sync.index;
     videoPlayer.src = videoList[currentVideoIndex].url;
@@ -176,13 +177,14 @@ function playSyncedVideo() {
     videoPlayer.muted = isMuted;
     updateMuteIcon();
   } else {
-    // Same video, just ensure time synced
+    // Same video - only adjust currentTime if drift > 0.5 seconds (less sensitive)
     const diff = Math.abs(videoPlayer.currentTime - sync.elapsed);
-    if (diff > 1) {
+    if (diff > 0.5) {
       videoPlayer.currentTime = sync.elapsed;
     }
   }
 }
+
 
 // When video ends, jump to next video respecting global sync
 videoPlayer.addEventListener("ended", () => {
