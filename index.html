@@ -260,30 +260,31 @@ function playSyncedVideo() {
   const targetSrc = targetVideo.url;
   const targetTime = sync.elapsed;
 
-  if (currentSrc !== targetSrc) {
-    currentSrc = targetSrc;
+const SEEK_THRESHOLD = 1.0; // seconds, increase tolerance
+
+if (currentSrc !== targetSrc) {
+  currentSrc = targetSrc;
+  seekingInProgress = true;
+
+  videoPlayer.src = targetSrc;
+  scrollBanner.textContent = targetVideo.title;
+  videoPlayer.muted = isMuted;
+  updateMuteIcon();
+
+  videoPlayer.addEventListener('loadedmetadata', function onLoad() {
+    videoPlayer.removeEventListener('loadedmetadata', onLoad);
+    videoPlayer.currentTime = targetTime;
+    videoPlayer.play().catch(() => {});
+    seekingInProgress = false;
+  });
+} else if (!seekingInProgress) {
+  const diff = Math.abs(videoPlayer.currentTime - targetTime);
+  if (diff > SEEK_THRESHOLD) {
     seekingInProgress = true;
-
-    videoPlayer.src = targetSrc;
-    scrollBanner.textContent = targetVideo.title;
-    videoPlayer.muted = isMuted;
-    updateMuteIcon();
-
-    videoPlayer.addEventListener('loadedmetadata', function onLoad() {
-      videoPlayer.removeEventListener('loadedmetadata', onLoad);
-      videoPlayer.currentTime = targetTime;
-      videoPlayer.play().catch(() => {});
+    videoPlayer.currentTime = targetTime;
+    setTimeout(() => {
       seekingInProgress = false;
-    });
-  } else if (!seekingInProgress) {
-    const diff = Math.abs(videoPlayer.currentTime - targetTime);
-    if (diff > 0.5) {
-      seekingInProgress = true;
-      videoPlayer.currentTime = targetTime;
-      setTimeout(() => {
-        seekingInProgress = false;
-      }, 500);
-    }
+    }, 1000);
   }
 }
 
