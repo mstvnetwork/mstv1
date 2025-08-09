@@ -33,7 +33,7 @@
   }
   .img-grid img {
     width: 100%;
-    height: 120px;
+    height: 80px;
     object-fit: cover;
     border-radius: 6px;
     cursor: pointer;
@@ -174,13 +174,7 @@
     <img src="https://picsum.photos/id/1024/300/180" alt="Sample Image 5" />
     <img src="https://picsum.photos/id/1027/300/180" alt="Sample Image 6" />
   </div>
-  <div class="channel-selector" title="Currently only one channel available">
-    <label style="color:#ffd700; font-weight:bold; cursor: default;">Click to select channels</label>
-    <select disabled>
-      <option selected>Channel 1 (only available)</option>
-    </select>
-  </div>
-</div>
+  
 
 <div id="player-container">
   <video id="videoPlayer" playsinline></video>
@@ -213,7 +207,7 @@
 
   // Mute toggle and persistence
   function updateMuteIcon() {
-    muteToggle.textContent = video.muted ? '🔇' : '🔊';
+    muteToggle.textContent = video.muted ? '🔊' : '🔇';
   }
   function loadMuteState() {
     const saved = localStorage.getItem('mstv_mute_state');
