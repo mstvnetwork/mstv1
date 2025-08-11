@@ -1,157 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MSTV NETWORK</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<meta name="description" content="MSTV Network offers a variety of live TV channels including music, movies, and more. Watch your favorite channels online for free.">
+<meta name="keywords" content="live TV, MSTV Network, free TV, live channels, streaming, music, bollywood, saga music">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="MSTV Network">
+<meta property="og:description" content="Stream live TV channels including music, movies, and more on MSTV Network.">
+<meta property="og:image" content="https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png">
+<meta property="og:url" content="https://mstvnet.netlify.app/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="MSTV Network">
+<meta name="twitter:description" content="Stream live TV channels including music, movies, and more on MSTV Network.">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png">
+<meta name="twitter:url" content="https://mstvnet.netlify.app/">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "name": "MSTV Network",
+  "description": "Stream live TV channels including music, movies, and more.",
+  "url": "https://mstvnet.netlify.app",
+  "publisher": {
+    "@type": "Organization",
+    "name": "MSTV Network",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://raw.githubusercontent.com/mstvnetwork/mstv2/refs/heads/main/Design-Studio-2025-01-20%20(2).png"
+    }
+  }
+}
+</script>
+
+<!-- ✅ GoatCounter script -->
+<script data-goatcounter="https://mstv.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+
+<title>MSTV Network</title>
+
 <style>
-  body, html {
-    margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #111; color: #eee;
-  }
-  h1 {
-    text-align: center;
-    font-size: 3rem;
-    font-weight: 900;
-    color: #ffd700;
-    margin-top: 1rem;
-    text-shadow: 0 0 10px #ffd700;
-  }
-  .marquee {
-    width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    box-sizing: border-box;
-    font-size: 1.2rem;
-    color: #fff;
-    background-color: #333;
-    padding: 0.5rem 0;
-    border-top: 2px solid #ffd700;
-    border-bottom: 2px solid #ffd700;
-    margin-bottom: 1rem;
-  }
-  .marquee-text {
-    display: inline-block;
-    padding-left: 100%;
-    animation: marquee 20s linear infinite;
-  }
-  @keyframes marquee {
-    0%   { transform: translate(0, 0); }
-    100% { transform: translate(-100%, 0); }
-  }
-  .info-marquee {
-    width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    box-sizing: border-box;
-    font-size: 1.2rem;
-    font-weight: bold;
-    color: #000;
-    background-color: #007bff;
-    padding: 0.5rem 0;
-    border-top: 2px solid #fff;
-    border-bottom: 2px solid #fff;
-    margin-top: 1.5rem;
-  }
-  .info-marquee-text {
-    display: inline-block;
-    padding-left: 100%;
-    animation: marquee 30s linear infinite;
-  }
-  .container {
-    max-width: 1200px;
-    margin: 1rem auto;
-    padding: 0 1rem;
-  }
-  .img-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-    gap: 0.5rem;
-    margin: 1rem 0;
-  }
-  .img-grid img {
-    width: 100%;
-    aspect-ratio: 1 / 1;
-    object-fit: cover;
-    border-radius: 6px;
-    cursor: pointer;
-    filter: brightness(0.85);
-    transition: filter 0.3s ease;
-  }
-  .img-grid img:hover {
-    filter: brightness(1);
-  }
-  #player-container {
-    max-width: 1200px;
-    margin: 2rem auto;
-    position: relative;
-    background: #000;
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 0 20px #ffd700;
-  }
-  video {
-    width: 100%;
-    height: auto;
-    display: block;
-    outline: none;
-  }
-  video::-webkit-media-controls,
-  video::-moz-media-controls,
-  video::-ms-media-controls {
-    display: none !important;
-  }
-  #mute-toggle {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    font-size: 2rem;
-    cursor: pointer;
-    user-select: none;
-    color: #ffd700;
-    background: rgba(0,0,0,0.4);
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    line-height: 40px;
-    text-align: center;
-    transition: background 0.3s ease;
-    z-index: 10;
-  }
-  #mute-toggle:hover {
-    background: rgba(0,0,0,0.7);
-  }
-  #fb-follow {
-    max-width: 1200px;
-    margin: 0.5rem auto 2rem auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #4267B2;
-    font-weight: 600;
-    font-size: 1.2rem;
-    cursor: pointer;
-    justify-content: center;
-  }
-  #fb-follow svg {
-    width: 28px;
-    height: 28px;
-    fill: #4267B2;
-  }
-  footer {
-    background: #222;
-    color: #aaa;
-    text-align: center;
-    padding: 1.5rem 1rem;
-    font-size: 0.9rem;
-    line-height: 1.5;
-  }
-  footer a {
-    color: #ffd700;
-    text-decoration: none;
-  }
-  footer a:hover {
-    text-decoration: underline;
-  }
+body, html {
+  margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #111; color: #eee;
+}
+h1 {
+  text-align: center;
+  font-size: 3rem;
+  font-weight: 900;
+  color: #ffd700;
+  margin-top: 1rem;
+  text-shadow: 0 0 10px #ffd700;
+}
+.marquee {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-size: 1.2rem;
+  color: #fff;
+  background-color: #333;
+  padding: 0.5rem 0;
+  border-top: 2px solid #ffd700;
+  border-bottom: 2px solid #ffd700;
+  margin-bottom: 1rem;
+}
+.marquee-text {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 20s linear infinite;
+}
+@keyframes marquee {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(-100%, 0); }
+}
+.info-marquee {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #000;
+  background-color: #007bff;
+  padding: 0.5rem 0;
+  border-top: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  margin-top: 1.5rem;
+}
+.info-marquee-text {
+  display: inline-block;
+  padding-left: 100%;
+  animation: marquee 30s linear infinite;
+}
+.container {
+  max-width: 1200px;
+  margin: 1rem auto;
+  padding: 0 1rem;
+}
+.img-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.img-grid img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: 6px;
+  cursor: pointer;
+  filter: brightness(0.85);
+  transition: filter 0.3s ease;
+}
+.img-grid img:hover {
+  filter: brightness(1);
+}
+#player-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  position: relative;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 20px #ffd700;
+}
+video {
+  width: 100%;
+  height: auto;
+  display: block;
+  outline: none;
+}
+video::-webkit-media-controls,
+video::-moz-media-controls,
+video::-ms-media-controls {
+  display: none !important;
+}
+
+/* Mute toggle (arrow + "+Click" text + speaker emoji) */
+#mute-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  user-select: none;
+  color: #ffd700;
+  background: rgba(0,0,0,0.45);
+  border-radius: 20px;
+  padding: 6px 10px;
+  line-height: 1;
+  text-align: center;
+  transition: background 0.25s ease;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(4px);
+}
+#mute-toggle:hover {
+  background: rgba(0,0,0,0.7);
+}
+.click-arrow {
+  font-size: 1rem;
+  color: #ffd700; /* golden yellow arrow */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+.click-text {
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 700;
+  user-select: none;
+}
+.mute-icon {
+  font-size: 1.25rem;
+  color: #ffd700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+#fb-follow {
+  max-width: 1200px;
+  margin: 0.5rem auto 2rem auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #4267B2;
+  font-weight: 600;
+  font-size: 1.2rem;
+  cursor: pointer;
+  justify-content: center;
+}
+#fb-follow svg {
+  width: 28px;
+  height: 28px;
+  fill: #4267B2;
+}
+
+/* Footer - Clean and organized */
+footer {
+  padding: 50px 20px;
+  color: #A0A0A0;
+  font-family: 'Poppins', sans-serif;
+  background: #1A1D20;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: 60px;
+}
+.footer-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 30px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.footer-column {
+  flex: 1 1 auto;
+  min-width: 250px;
+  padding: 15px;
+}
+.footer-column h2,
+.footer-column h3,
+.footer-column h4 {
+  color: #FFFFFF;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+.footer-column p {
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: #C0C0C0;
+  text-align: left;
+}
+.footer-column a {
+  color: #90EE90;
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+.footer-column a:hover {
+  color: #FFFFFF;
+}
+/* Copyright */
+.copyright {
+  text-align: center;
+  color: #808080;
+  margin-top: 30px;
+  font-size: 0.85rem;
+}
 </style>
 </head>
 <body>
@@ -179,7 +279,11 @@
 
 <div id="player-container">
   <video id="videoPlayer" playsinline></video>
-  <div id="mute-toggle" title="Mute/Unmute">🔇</div>
+  <div id="mute-toggle" title="Mute/Unmute" role="button" aria-pressed="false">
+    <span class="click-arrow" aria-hidden="true">➜</span>
+    <span class="click-text">+Click</span>
+    <span class="mute-icon">🔇</span>
+  </div>
 </div>
 
 <div class="info-marquee">
@@ -194,10 +298,25 @@
 </div>
 
 <footer>
-  <p><strong>About us:</strong> MSTV NETWORK is your global live streaming platform.</p>
-  <p><strong>Disclaimer:</strong> Content is streamed as provided by third-party sources.</p>
-  <p>&copy; 2025 MSTV NETWORK. All rights reserved.</p>
+  <div class="footer-section">
+    <div class="footer-column">
+      <h2>✅ About Us</h2>
+      <p>MSTV Network is a free streaming platform bringing you 24/7 access to music, movies, news, kids content, and more. We aim to deliver high-quality entertainment for audiences worldwide — no subscriptions, no hidden fees.</p>
+      <h3>⚠️ Disclaimer</h3>
+      <p>MSTV Network streams content freely available on public platforms. We do not host or claim ownership of any third-party media. All copyrights remain with their respective owners.</p>
+      <h4>📜 Terms of Service</h4>
+      <p>By using MSTV Network, you agree to view content solely for personal, non-commercial use. We are not responsible for third-party streams or their availability. Continued use constitutes acceptance of these terms.</p>
+    </div>
+    <div class="footer-column">
+      <h2>Contact</h2>
+      <p>Email: contact@mstvindia.com</p>
+      <p>Phone: +001-305-242-4447</p>
+    </div>
+  </div>
+  <div class="copyright">© 2025 MSTV INDIA. All rights reserved.</div>
 </footer>
+
+<script data-goatcounter="https://mstv.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
 
 <script>
 (() => {
@@ -212,19 +331,18 @@
   let playingIndex = -1;
   let totalDuration = 0;
   let syncIntervalId = null;
-  
+
   const preloader = document.createElement('video');
   preloader.preload = 'auto';
   preloader.muted = true;
   preloader.style.display = 'none';
   document.body.appendChild(preloader);
 
-  // A flag to prevent sync from running during a transition
   let isTransitioning = false;
 
   // Mute toggle and persistence
   function updateMuteIcon() {
-    muteToggle.textContent = video.muted ? '🔇' : '🔊';
+    muteToggle.querySelector('.mute-icon').textContent = video.muted ? '🔇' : '🔊';
   }
   function loadMuteState() {
     const saved = localStorage.getItem('mstv_mute_state');
@@ -245,20 +363,20 @@
     const nowPlayingTitle = playlist[playingIndex].title || 'Unknown Title';
     const nextIndex = (playingIndex + 1) % playlist.length;
     const upNextTitle = playlist[nextIndex].title || 'Unknown Title';
-    
+
     infoMarqueeText.innerHTML = `
-      <span style="font-weight: bold;">NOW PLAYING:</span> ${nowPlayingTitle} &nbsp; &nbsp; &nbsp; &nbsp; 
+      <span style="font-weight: bold;">NOW PLAYING:</span> ${nowPlayingTitle} &nbsp; &nbsp; &nbsp; &nbsp;
       <span style="font-weight: bold;">UP NEXT:</span> ${upNextTitle} &nbsp; &nbsp; &nbsp; &nbsp;
     `;
   }
-  
-  // Function to start preloading the next video in the sequence
+
+  // Preload the next video in the sequence
   function preloadNextVideo() {
     if (playlist.length > 1) {
-        const nextIndex = (playingIndex + 1) % playlist.length;
-        const nextVideoUrl = playlist[nextIndex].url;
-        preloader.src = nextVideoUrl;
-        console.log(`Preloading next video: ${nextVideoUrl}`);
+      const nextIndex = (playingIndex + 1) % playlist.length;
+      const nextVideoUrl = playlist[nextIndex].url;
+      preloader.src = nextVideoUrl;
+      console.log(`Preloading next video: ${nextVideoUrl}`);
     }
   }
 
@@ -266,35 +384,32 @@
   function playVideoAt(i, offset) {
     if (!playlist[i]) return;
     const v = playlist[i];
-    
+
     console.log(`Playing video: ${v.title}, starting at offset: ${offset}s`);
-    
-    // Set a new video source if it's different from the current one
+
     if (video.src !== v.url) {
-        video.src = v.url;
-        video.onloadeddata = () => {
-            video.currentTime = offset;
-            video.play().catch(e => {
-                console.log('Autoplay failed, muting and trying again:', e);
-                video.muted = true;
-                video.play();
-            });
-            isTransitioning = false;
-            updateInfoMarquee();
-            preloadNextVideo();
-        };
-    } else {
+      video.src = v.url;
+      video.muted = true;
+      video.onloadeddata = () => {
         video.currentTime = offset;
         video.play().catch(e => {
-            console.log('Autoplay failed, muting and trying again:', e);
-            video.muted = true;
-            video.play();
+          console.log('Autoplay failed:', e);
         });
         isTransitioning = false;
+        updateInfoMarquee();
+        preloadNextVideo();
+      };
+    } else {
+      video.currentTime = offset;
+      video.muted = true;
+      video.play().catch(e => {
+        console.log('Autoplay failed:', e);
+      });
+      isTransitioning = false;
     }
   }
 
-  // Function to handle playing the next video in the playlist
+  // Handle playing the next video in the playlist
   function playNextVideoFromEnd() {
     isTransitioning = true;
     playingIndex = (playingIndex + 1) % playlist.length;
@@ -310,9 +425,8 @@
 
       globalStartTimeUTC = new Date(data.start_time_utc);
       playlist = data.video_list.map(v => ({
-          ...v,
-          // Remove any hashes like #nsfw from the URL
-          url: v.url.split('#')[0]
+        ...v,
+        url: v.url.split('#')[0]
       }));
       totalDuration = playlist.reduce((sum, v) => sum + v.duration_seconds, 0);
 
@@ -326,7 +440,6 @@
 
   // Calculate live playback position and load video
   function syncAndPlay() {
-    // Block sync if a transition is in progress or if playlist is empty
     if (isTransitioning || !globalStartTimeUTC || playlist.length === 0) return;
 
     const now = new Date();
@@ -339,13 +452,12 @@
       cumSum += playlist[i].duration_seconds;
       if (elapsed < cumSum) {
         const offset = elapsed - (cumSum - playlist[i].duration_seconds);
-        
+
         if (i !== playingIndex) {
           playingIndex = i;
           playVideoAt(playingIndex, offset);
         } else {
           const currentTime = video.currentTime;
-          // Only re-sync if the player has drifted more than 5 seconds AND is not near the end of the video
           if (Math.abs(currentTime - offset) > 5 && (video.duration - currentTime) > 5) {
             console.log('Re-syncing player due to time drift.');
             video.currentTime = offset;
@@ -356,17 +468,15 @@
     }
   }
 
-  // --- Initial Setup and Event Listeners ---
+  // Initial Setup
   loadMuteState();
   loadJSON();
 
-  // The primary onended event listener to handle seamless transitions
+  // Event listeners
   video.onended = playNextVideoFromEnd;
-
-  // A periodic check to re-sync the player with the global timeline
   video.onplaying = () => {
     if (!syncIntervalId) {
-      syncIntervalId = setInterval(syncAndPlay, 5_000);
+      syncIntervalId = setInterval(syncAndPlay, 5000);
     }
   };
 })();
