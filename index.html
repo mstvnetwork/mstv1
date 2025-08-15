@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>MSTV Network – Main Page</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MSTV Main Player – Combined</title>
 
   <style>
     body {
@@ -18,56 +18,79 @@
       text-align: center;
       padding: 20px 10px;
       background-color: #000;
-      font-size: 2.2em;
-      font-weight: bold;
+      font-size: 2em;
       color: #FFD700;
     }
 
-    .channel-buttons {
+    .buttons {
       text-align: center;
       margin: 20px 0;
     }
 
-    .channel-buttons button {
+    .buttons button {
       padding: 10px 20px;
-      margin: 0 10px;
       font-size: 1em;
+      margin: 0 10px;
+      background-color: #FFD700;
       border: none;
       border-radius: 4px;
-      background-color: #FFD700;
       color: #000;
       cursor: pointer;
-      transition: background-color 0.3s;
     }
 
-    .channel-buttons button:hover {
-      background-color: #e6c200;
-    }
-
-    .channel-wrapper {
+    .video-wrapper {
       position: relative;
       width: 90%;
       max-width: 1280px;
-      margin: 20px auto;
-      padding-top: 56.25%; /* 16:9 Aspect Ratio */
+      margin: 0 auto;
+      padding-top: 56.25%; /* 16:9 aspect ratio */
       background-color: black;
     }
 
-    .channel-frame {
+    #videoContainer {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      border: none;
     }
 
-    footer {
-      background-color: #000;
-      color: #FFD700;
-      text-align: center;
-      padding: 20px;
+    #videoPlayer {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    #muteToggle {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+      font-size: 1.5em;
+      padding: 5px 10px;
+      border-radius: 50%;
+      cursor: pointer;
+      z-index: 10;
+    }
+
+    #liveStamp {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background-color: red;
+      color: white;
+      font-weight: bold;
+      padding: 5px 10px;
       font-size: 0.9em;
+      border-radius: 5px;
+      z-index: 10;
+    }
+
+    #bottomText {
+      text-align: center;
+      margin: 20px 0;
+      font-size: 1.2em;
     }
   </style>
 </head>
@@ -75,32 +98,118 @@
 
   <header>MSTV NETWORK</header>
 
-  <div class="channel-buttons">
+  <div class="buttons">
     <button onclick="switchChannel('m3u8')">🎬 M3U8 Channel</button>
     <button onclick="switchChannel('mp4')">🎥 MP4 Channel</button>
   </div>
 
-  <div class="channel-wrapper">
-    <iframe id="streamFrame" class="channel-frame" allowfullscreen></iframe>
+  <div class="video-wrapper">
+    <div id="videoContainer">
+      <video id="videoPlayer" autoplay muted playsinline></video>
+      <span id="muteToggle">🔈</span>
+      <div id="liveStamp">LIVE</div>
+    </div>
   </div>
 
-  <footer>
-    &copy; 2025 MSTV INDIA. All rights reserved.
-  </footer>
+  <div id="bottomText">Now Playing...</div>
 
+  <!-- HLS.js for m3u8 -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const urls = {
-      m3u8: "https://mstvnetwork.github.io/mstv8/"
-      mp4: "https://mstvnetwork.github.io/mstv9/"
-    };
+    const video = document.getElementById("videoPlayer");
+    const muteToggle = document.getElementById("muteToggle");
+    const bottomText = document.getElementById("bottomText");
 
-    function switchChannel(type) {
-      document.getElementById('streamFrame').src = urls[type];
+    let hls = null;
+    let currentChannel = "";
+    let currentIndex = -1;
+    let interval;
+
+    video.muted = true;
+
+    muteToggle.addEventListener("click", () => {
+      video.muted = !video.muted;
+      muteToggle.textContent = video.muted ? "🔈" : "🔊";
+      video.play().catch(() => {});
+    });
+
+    const m3u8Playlist = [
+      { title: "Saajan", url: "https://mzaalovod.pc.cdn.bitgravity.com/Eros-movies-2024-output/Saajan/master.m3u8", duration: 10800 },
+      { title: "Sikandar", url: "https://t9lr3d.cfglobalcdn.com/silverlight/secip/110686/133612/xPHzmUVSH8lljeeF88nIoA/MTAxLjExOS4xODMuMTI4/1755182595/hls-vod-s002/flv/api/files/videos/2025/05/25/17481268454gjld.mp4.m3u8", duration: 8020 }
+    ];
+
+    const mp4Playlist = [
+      { title: "Saajan", url: "https://cdn3.einthusan.io/etv/content/D0989.mp4.m3u8?e=1755274175&md5=3CFMJcxyLm7sXO2-CeLTlQ", duration: 10800 },
+      { title: "Jurrasic World", url: "https://i-cdn-0.deand373use.com/stream2/i-cdn-0/6ddeb17c170fbd6bb594eb9ac4e2cc2e/MJTMsp1RshGTygnMNRUR2N2MSlnWXZEdMNDZzQWe5MDZzMmdZJTO1R2RWVHZDljekhkSsl1VwYnWtx2cihVT250ROtmTqpEbPRUQ35keBRjT6lUNapWTzoFVNdnTElUNNRVSwklMZhXTqFUP:1755255879:101.119.183.128:59b3fb989d41ba97a327883a69029286bfd298e9b2a926e28e46dd70892c31d3/index.m3u8", duration: 7980 }
+    ];
+
+    function getCurrentPosition(playlist) {
+      const totalDuration = playlist.reduce((a, b) => a + b.duration, 0);
+      const now = Math.floor(Date.now() / 1000) % totalDuration;
+      let offset = 0;
+      for (let i = 0; i < playlist.length; i++) {
+        if (now < offset + playlist[i].duration) {
+          return { index: i, time: now - offset };
+        }
+        offset += playlist[i].duration;
+      }
+      return { index: 0, time: 0 };
     }
 
-    // Load default channel
-    switchChannel('m3u8');
-  </script>
+    function updateBottomText(playlist, index) {
+      const now = playlist[index].title;
+      const next = playlist[(index + 1) % playlist.length].title;
+      bottomText.textContent = `Now Playing: ${now} — Coming Next: ${next}`;
+    }
 
+    function loadStream(type, playlist) {
+      const { index, time } = getCurrentPosition(playlist);
+
+      if (index !== currentIndex || currentChannel !== type) {
+        currentIndex = index;
+        currentChannel = type;
+
+        const source = playlist[index].url;
+        const title = playlist[index].title;
+
+        if (hls) {
+          hls.destroy();
+          hls = null;
+        }
+
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+          video.src = source;
+          video.currentTime = time;
+          video.play().catch(() => {});
+        } else {
+          hls = new Hls();
+          hls.loadSource(source);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.currentTime = time;
+            video.play().catch(() => {});
+          });
+        }
+
+        updateBottomText(playlist, index);
+      } else {
+        // drift correction
+        const drift = video.currentTime - time;
+        if (Math.abs(drift) > 2) video.currentTime = time;
+      }
+    }
+
+    function switchChannel(type) {
+      clearInterval(interval);
+      if (type === "m3u8") {
+        interval = setInterval(() => loadStream("m3u8", m3u8Playlist), 1000);
+      } else {
+        interval = setInterval(() => loadStream("mp4", mp4Playlist), 1000);
+      }
+    }
+
+    // Load M3U8 by default
+    switchChannel("m3u8");
+  </script>
 </body>
 </html>
