@@ -37,84 +37,32 @@
       cursor: pointer;
       z-index: 10;
     }
-
-    /* Loader styles */
-    #loader {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: black;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      color: white;
-      z-index: 20;
-      font-family: Arial, sans-serif;
-      font-size: 1.2em;
-      pointer-events: none;
-    }
-
-    .spinner {
-      border: 6px solid rgba(255, 255, 255, 0.2);
-      border-top: 6px solid white;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 20px;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
   <div id="videoContainer">
     <video id="videoPlayer" autoplay playsinline></video>
     <span id="muteButton">🔇</span>
-
-    <!-- Loader -->
-    <div id="loader">
-      <div class="spinner"></div>
-      <div>Channel loading, please wait...</div>
-    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     const video = document.getElementById('videoPlayer');
     const muteButton = document.getElementById('muteButton');
-    const loader = document.getElementById('loader');
-
     let hls = null;
+
+    // ✅ Load persistent mute state from localStorage (default: true/muted)
     let isMuted = localStorage.getItem('mstvMuted') === 'false' ? false : true;
 
-    // ✅ Parse channel from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const ch = parseInt(urlParams.get('ch') || '1');
-
-    // ✅ Channel definitions
-    const channels = {
-      1: {
-        urls: ["https://cdn3.einthusan.io/etv/content/D7ret.mp4.m3u8?e=1755436755&md5=7d0BtyeYKP72dRgGoXjTuQ"],
-        durations: [120]
-      },
-      2: {
-        urls: ["https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/NdcpmoJKhZQHAnW4ZpL1Rw/MTAxLjExOS42Ny4xNDY=/1755436820/hls-vod-s0013/flv/api/files/videos/2025/08/03/175421688647ex0.mp4.m3u8"],
-        durations: [120]
-      },
-      3: {
-        urls: ["https://cdn1.einthusan.io/etv/content/D0473.mp4.m3u8?e=1755436894&md5=YrqyQ9tLTjQOY7lcnn277Q"],
-        durations: [120]
-      }
+    // Channel config
+    const channel = {
+      type: "m3u8",
+      durations: [12372, 9265],
+      urls: [
+        "https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/gJHqMZP1OAPmGM55LWwi6g/MTAxLjExOS4xMTUuODU=/1755365102/hls-vod-s0013/flv/api/files/videos/2025/08/03/175421688647ex0.mp4.m3u8",
+        "https://cdn3.einthusan.io/etv/content/D7ret.mp4.m3u8?e=1755365400&md5=HqSKMyJ1v3NdVp2pmmNWGg"
+      ]
     };
-
-    // ✅ Fallback to ch 1 if invalid
-    const channel = channels[ch] || channels[1];
 
     let currentVideoIndex = -1;
 
@@ -139,7 +87,7 @@
         hls = null;
       }
 
-      if (channel.urls[index].endsWith(".m3u8") && Hls.isSupported()) {
+      if (channel.type === 'm3u8' && Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
@@ -167,10 +115,10 @@
       }
     }
 
-    // Mute toggle
+    // ✅ Mute/unmute toggle with persistence
     muteButton.addEventListener('click', () => {
       isMuted = !isMuted;
-      localStorage.setItem('mstvMuted', isMuted);
+      localStorage.setItem('mstvMuted', isMuted);  // save state
       video.muted = isMuted;
       muteButton.textContent = isMuted ? '🔇' : '🔊';
 
@@ -179,16 +127,10 @@
       }
     });
 
-    // Apply initial mute
+    // ✅ Apply mute state on load
     video.muted = isMuted;
     muteButton.textContent = isMuted ? '🔇' : '🔊';
 
-    // ✅ Hide loader when video starts
-    video.addEventListener('playing', () => {
-      loader.style.display = 'none';
-    });
-
-    // Load initial stream
     syncPlayback();
     setInterval(syncPlayback, 1000);
   </script>
