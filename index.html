@@ -99,19 +99,20 @@
 
     // ✅ Channel definitions
     const channels = {
-      1: {
-        urls: ["https://cdn3.einthusan.io/etv/content/D7ret.mp4.m3u8?e=1755436755&md5=7d0BtyeYKP72dRgGoXjTuQ"],
-        durations: [120]
-      },
-      2: {
-        urls: ["https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/NdcpmoJKhZQHAnW4ZpL1Rw/MTAxLjExOS42Ny4xNDY=/1755436820/hls-vod-s0013/flv/api/files/videos/2025/08/03/175421688647ex0.mp4.m3u8"],
-        durations: [120]
-      },
-      3: {
-        urls: ["https://cdn1.einthusan.io/etv/content/D0473.mp4.m3u8?e=1755436894&md5=YrqyQ9tLTjQOY7lcnn277Q"],
-        durations: [120]
-      }
-    };
+  1: {
+    urls: ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"],
+    durations: [120]
+  },
+  2: {
+    urls: ["https://test-streams.mux.dev/pts_shift/master.m3u8"],
+    durations: [120]
+  },
+  3: {
+    urls: ["https://mojang.hosting.lanex.cz/minecraft.m3u8"],
+    durations: [120]
+  }
+};
+
 
     const channel = channels[ch] || channels[1];
     let currentVideoIndex = -1;
