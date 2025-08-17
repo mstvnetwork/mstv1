@@ -113,11 +113,10 @@
       }
     };
 
-    // ✅ Fallback to ch 1 if invalid
     const channel = channels[ch] || channels[1];
-
     let currentVideoIndex = -1;
 
+    // ✅ Calculate current pseudo-live playback position
     function getPlaybackPosition(channel) {
       const total = channel.durations.reduce((a, b) => a + b, 0);
       const now = Math.floor(Date.now() / 1000) % total;
@@ -131,6 +130,7 @@
       return { index: 0, time: 0 };
     }
 
+    // ✅ Load stream at a specific index and time
     function loadStream(index, time) {
       const url = channel.urls[index];
 
@@ -139,7 +139,7 @@
         hls = null;
       }
 
-      if (channel.urls[index].endsWith(".m3u8") && Hls.isSupported()) {
+      if (url.endsWith(".m3u8") && Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
@@ -157,6 +157,7 @@
       }
     }
 
+    // ✅ Sync playback regularly to keep in pseudo-live state
     function syncPlayback() {
       const { index, time } = getPlaybackPosition(channel);
       if (index !== currentVideoIndex) {
@@ -167,28 +168,34 @@
       }
     }
 
-    // Mute toggle
+    // ✅ Looping logic: reload stream when video ends
+    video.addEventListener('ended', () => {
+      const { index, time } = getPlaybackPosition(channel);
+      currentVideoIndex = index;
+      loadStream(index, time);
+    });
+
+    // ✅ Mute toggle with persistence
     muteButton.addEventListener('click', () => {
       isMuted = !isMuted;
       localStorage.setItem('mstvMuted', isMuted);
       video.muted = isMuted;
       muteButton.textContent = isMuted ? '🔇' : '🔊';
-
       if (!video.paused) {
         video.play().catch(() => {});
       }
     });
 
-    // Apply initial mute
+    // ✅ Apply mute setting on load
     video.muted = isMuted;
     muteButton.textContent = isMuted ? '🔇' : '🔊';
 
-    // ✅ Hide loader when video starts
+    // ✅ Hide loader when video starts playing
     video.addEventListener('playing', () => {
       loader.style.display = 'none';
     });
 
-    // Load initial stream
+    // ✅ Start playback and start sync loop
     syncPlayback();
     setInterval(syncPlayback, 1000);
   </script>
