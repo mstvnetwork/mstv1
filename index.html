@@ -38,6 +38,7 @@
       z-index: 10;
     }
 
+    /* Loader styles */
     #loader {
       position: absolute;
       top: 0;
@@ -92,30 +93,31 @@
     let hls = null;
     let isMuted = localStorage.getItem('mstvMuted') === 'false' ? false : true;
 
-    // Parse channel number from URL
+    // ✅ Parse channel from URL
     const urlParams = new URLSearchParams(window.location.search);
     const ch = parseInt(urlParams.get('ch') || '1');
 
-    // Define test channels (working HLS streams)
+    // ✅ Channel definitions
     const channels = {
       1: {
-        urls: ["https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"],
+        urls: ["https://cdn3.einthusan.io/etv/content/D7ret.mp4.m3u8?e=1755436755&md5=7d0BtyeYKP72dRgGoXjTuQ"],
         durations: [120]
       },
       2: {
-        urls: ["https://mojang.hosting.lanex.cz/minecraft.m3u8"],
+        urls: ["https://t9lr3d.cfglobalcdn.com/silverlight/secip/113295/133612/NdcpmoJKhZQHAnW4ZpL1Rw/MTAxLjExOS42Ny4xNDY=/1755436820/hls-vod-s0013/flv/api/files/videos/2025/08/03/175421688647ex0.mp4.m3u8"],
         durations: [120]
       },
       3: {
-        urls: ["https://test-streams.mux.dev/pts_shift/master.m3u8"],
+        urls: ["https://cdn1.einthusan.io/etv/content/D0473.mp4.m3u8?e=1755436894&md5=YrqyQ9tLTjQOY7lcnn277Q"],
         durations: [120]
       }
     };
 
+    // ✅ Fallback to ch 1 if invalid
     const channel = channels[ch] || channels[1];
+
     let currentVideoIndex = -1;
 
-    // Get pseudo-live playback time
     function getPlaybackPosition(channel) {
       const total = channel.durations.reduce((a, b) => a + b, 0);
       const now = Math.floor(Date.now() / 1000) % total;
@@ -129,7 +131,6 @@
       return { index: 0, time: 0 };
     }
 
-    // Load the stream at a given index and time
     function loadStream(index, time) {
       const url = channel.urls[index];
 
@@ -138,31 +139,24 @@
         hls = null;
       }
 
-      if (Hls.isSupported()) {
-        hls = new Hls({ debug: true }); // enable debug logs
+      if (channel.urls[index].endsWith(".m3u8") && Hls.isSupported()) {
+        hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.currentTime = time;
           video.play().catch(() => {});
         });
-
-        hls.on(Hls.Events.ERROR, function (event, data) {
-          console.error('HLS.js error:', data);
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      } else {
         video.src = url;
-        video.addEventListener('loadedmetadata', function handler() {
-          video.removeEventListener('loadedmetadata', handler);
+        video.addEventListener('loadeddata', function handler() {
+          video.removeEventListener('loadeddata', handler);
           video.currentTime = time;
           video.play().catch(() => {});
         });
-      } else {
-        console.error("This browser does not support HLS.");
       }
     }
 
-    // Sync the playback to current pseudo-live time
     function syncPlayback() {
       const { index, time } = getPlaybackPosition(channel);
       if (index !== currentVideoIndex) {
@@ -173,34 +167,28 @@
       }
     }
 
-    // When video ends, reload the stream at correct time (loop)
-    video.addEventListener('ended', () => {
-      const { index, time } = getPlaybackPosition(channel);
-      currentVideoIndex = index;
-      loadStream(index, time);
-    });
-
-    // Toggle mute
+    // Mute toggle
     muteButton.addEventListener('click', () => {
       isMuted = !isMuted;
       localStorage.setItem('mstvMuted', isMuted);
       video.muted = isMuted;
       muteButton.textContent = isMuted ? '🔇' : '🔊';
+
       if (!video.paused) {
         video.play().catch(() => {});
       }
     });
 
-    // Apply mute on load
+    // Apply initial mute
     video.muted = isMuted;
     muteButton.textContent = isMuted ? '🔇' : '🔊';
 
-    // Hide loader when video starts playing
+    // ✅ Hide loader when video starts
     video.addEventListener('playing', () => {
       loader.style.display = 'none';
     });
 
-    // Start video and sync loop
+    // Load initial stream
     syncPlayback();
     setInterval(syncPlayback, 1000);
   </script>
