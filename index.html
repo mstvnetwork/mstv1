@@ -87,23 +87,22 @@
   <script>
     let hls = null;
     let loaderHidden = false;
-
     const videoContainer = document.getElementById('videoContainer');
     let video = document.getElementById('videoPlayer');
     const loaderOverlay = document.getElementById('loaderOverlay');
     const muteButton = document.getElementById('muteButton');
+    let seekTimeout = null;
 
-    // ✅ Hardcoded playlist for pseudo-live loop
     const channel = {
       type: "m3u8",
-      durations: [8170], // duration in seconds of the video(s)
-      urls: "https://3gd64u.cfglobalcdn.com/silverlight/secip/113295/133612/zHU9MTH0HjzYAz3YvOUu0A/MTIwLjIxLjc5LjI0OA==/1755592039/hls-vod-s001/flv/api/files/videos/2025/08/07/17545869742idqv.mp4.m3u8"
+      durations: [8170], // video length in seconds
+      urls: [
+        "https://3gd64u.cfglobalcdn.com/silverlight/secip/113295/133612/uewMk3uVIMqGp97hMG7VwQ/MTIwLjE5LjEzOC4yMzU=/1755582113/hls-vod-s001/flv/api/files/videos/2025/08/07/17545869742idqv.mp4.m3u8"
       ]
     };
 
     let currentVideoIndex = -1;
 
-    // 🔁 Calculate which video + offset to play based on UTC time
     function getPlaybackPosition(channel) {
       const total = channel.durations.reduce((a, b) => a + b, 0);
       const now = Math.floor(Date.now() / 1000) % total;
@@ -122,11 +121,10 @@
       newVideo.id = 'videoPlayer';
       newVideo.autoplay = true;
       newVideo.playsInline = true;
-      newVideo.muted = true; // 🔒 Start muted
+      newVideo.muted = true;
       newVideo.style.width = "100%";
       newVideo.style.height = "100%";
       newVideo.style.objectFit = "cover";
-
       videoContainer.replaceChild(newVideo, video);
       video = newVideo;
 
@@ -134,12 +132,13 @@
         video.addEventListener(evt, hideLoaderOnce);
       });
 
+      monitorSeek(); // Attach seek-locking
+
       return video;
     }
 
     function loadStream(index, time) {
       const url = channel.urls[index];
-
       if (hls) {
         hls.destroy();
         hls = null;
@@ -166,7 +165,6 @@
         });
       }
 
-      // 🔁 Resync if video ends
       video.onended = () => {
         syncPlaybackOnce();
       };
@@ -190,13 +188,18 @@
       }
     }
 
-    // 🔁 Periodic drift correction every 15s
-    setInterval(syncPlaybackOnce, 15000);
+    // 🧠 Drift-corrected sync every 5 seconds
+    (function driftCorrectedLoop() {
+      syncPlaybackOnce();
+      const interval = 5000;
+      const now = Date.now();
+      const nextTick = interval - (now % interval);
+      setTimeout(driftCorrectedLoop, nextTick);
+    })();
 
-    // ✅ Start muted
+    // 🔊 Mute toggle
     video.muted = true;
     muteButton.textContent = '🔇';
-
     muteButton.addEventListener('click', () => {
       video.muted = !video.muted;
       muteButton.textContent = video.muted ? '🔇' : '🔊';
@@ -205,7 +208,32 @@
       }
     });
 
-    // ⬅️ Kick off playback immediately
+    // ⏩⏪ Seek-locking logic
+    function monitorSeek() {
+      video.addEventListener('seeking', () => {
+        clearTimeout(seekTimeout);
+        const { time: liveTime } = getPlaybackPosition(channel);
+        const currentTime = video.currentTime;
+        const diff = currentTime - liveTime;
+
+        console.log(`User seeking: diff = ${diff.toFixed(2)}s`);
+
+        if (diff > 3) {
+          // Too far forward — snap immediately
+          console.log('🔁 Seeking too far ahead — snapping back to live');
+          video.currentTime = liveTime;
+        } else if (diff < -3) {
+          // Rewind — allow temporary delay
+          console.log('⏪ Rewind detected — will snap back after delay');
+          seekTimeout = setTimeout(() => {
+            console.log('🔁 Returning to live after rewind');
+            video.currentTime = getPlaybackPosition(channel).time;
+          }, 10000); // 10 seconds
+        }
+      });
+    }
+
+    // ⬅️ Start everything
     syncPlaybackOnce();
   </script>
 </body>
