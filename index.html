@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MSTV Final Spinner Fix</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MSTV Pseudo Live Test</title>
   <style>
     html, body {
       margin: 0;
@@ -92,9 +93,10 @@
     const loaderOverlay = document.getElementById('loaderOverlay');
     const muteButton = document.getElementById('muteButton');
 
+    // ✅ Hardcoded playlist for pseudo-live loop
     const channel = {
       type: "m3u8",
-      durations: [8170],
+      durations: [8170], // duration in seconds of the video(s)
       urls: [
         "https://3gd64u.cfglobalcdn.com/silverlight/secip/113295/133612/uewMk3uVIMqGp97hMG7VwQ/MTIwLjE5LjEzOC4yMzU=/1755582113/hls-vod-s001/flv/api/files/videos/2025/08/07/17545869742idqv.mp4.m3u8"
       ]
@@ -102,6 +104,7 @@
 
     let currentVideoIndex = -1;
 
+    // 🔁 Calculate which video + offset to play based on UTC time
     function getPlaybackPosition(channel) {
       const total = channel.durations.reduce((a, b) => a + b, 0);
       const now = Math.floor(Date.now() / 1000) % total;
@@ -120,7 +123,7 @@
       newVideo.id = 'videoPlayer';
       newVideo.autoplay = true;
       newVideo.playsInline = true;
-      newVideo.muted = true; // 🔒 Always start muted for autoplay
+      newVideo.muted = true; // 🔒 Start muted
       newVideo.style.width = "100%";
       newVideo.style.height = "100%";
       newVideo.style.objectFit = "cover";
@@ -128,7 +131,6 @@
       videoContainer.replaceChild(newVideo, video);
       video = newVideo;
 
-      // Reattach loader logic
       ['canplay', 'playing', 'timeupdate'].forEach(evt => {
         video.addEventListener(evt, hideLoaderOnce);
       });
@@ -154,20 +156,21 @@
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.currentTime = time;
-          video.play().catch(err => {
-            console.warn('Play failed:', err);
-          });
+          video.play().catch(err => console.warn('Play failed:', err));
         });
       } else {
         video.src = url;
         video.addEventListener('loadeddata', function handler() {
           video.removeEventListener('loadeddata', handler);
           video.currentTime = time;
-          video.play().catch(err => {
-            console.warn('Play failed:', err);
-          });
+          video.play().catch(err => console.warn('Play failed:', err));
         });
       }
+
+      // 🔁 Resync if video ends
+      video.onended = () => {
+        syncPlaybackOnce();
+      };
     }
 
     function hideLoaderOnce() {
@@ -188,21 +191,22 @@
       }
     }
 
-    // ✅ Always start muted
+    // 🔁 Periodic drift correction every 15s
+    setInterval(syncPlaybackOnce, 15000);
+
+    // ✅ Start muted
     video.muted = true;
     muteButton.textContent = '🔇';
 
-    // ✅ Unmute allowed only after user interaction
     muteButton.addEventListener('click', () => {
       video.muted = !video.muted;
       muteButton.textContent = video.muted ? '🔇' : '🔊';
-
       if (!video.paused) {
         video.play().catch(err => console.warn('Play after unmute failed:', err));
       }
     });
 
-    // ⬅️ Kick off playback
+    // ⬅️ Kick off playback immediately
     syncPlaybackOnce();
   </script>
 </body>
