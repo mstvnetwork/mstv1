@@ -1,9 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MSTV Pseudo-Live Embed</title>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MSTV Final Spinner Fix</title>
   <style>
     html, body {
       margin: 0;
@@ -37,24 +36,62 @@
       cursor: pointer;
       z-index: 10;
     }
+
+    #loaderOverlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9;
+      color: gold;
+      font-family: sans-serif;
+      font-size: 1.2em;
+      pointer-events: none;
+    }
+
+    .spinner {
+      border: 6px solid rgba(255, 215, 0, 0.3);
+      border-top: 6px solid gold;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <div id="videoContainer">
-    <video id="videoPlayer" autoplay playsinline></video>
+    <video id="videoPlayer" autoplay playsinline muted></video>
     <span id="muteButton">🔇</span>
+
+    <div id="loaderOverlay">
+      <div class="spinner"></div>
+      <div>Please wait, loading...</div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    const video = document.getElementById('videoPlayer');
-    const muteButton = document.getElementById('muteButton');
     let hls = null;
+    let loaderHidden = false;
 
-    // ✅ Load persistent mute state from localStorage (default: true/muted)
-    let isMuted = localStorage.getItem('mstvMuted') === 'false' ? false : true;
+    const videoContainer = document.getElementById('videoContainer');
+    let video = document.getElementById('videoPlayer');
+    const loaderOverlay = document.getElementById('loaderOverlay');
+    const muteButton = document.getElementById('muteButton');
 
-    // Channel config
     const channel = {
       type: "m3u8",
       durations: [8170],
@@ -78,6 +115,27 @@
       return { index: 0, time: 0 };
     }
 
+    function resetVideoElement() {
+      const newVideo = document.createElement('video');
+      newVideo.id = 'videoPlayer';
+      newVideo.autoplay = true;
+      newVideo.playsInline = true;
+      newVideo.muted = true; // 🔒 Always start muted for autoplay
+      newVideo.style.width = "100%";
+      newVideo.style.height = "100%";
+      newVideo.style.objectFit = "cover";
+
+      videoContainer.replaceChild(newVideo, video);
+      video = newVideo;
+
+      // Reattach loader logic
+      ['canplay', 'playing', 'timeupdate'].forEach(evt => {
+        video.addEventListener(evt, hideLoaderOnce);
+      });
+
+      return video;
+    }
+
     function loadStream(index, time) {
       const url = channel.urls[index];
 
@@ -86,52 +144,66 @@
         hls = null;
       }
 
+      loaderHidden = false;
+      loaderOverlay.style.display = 'flex';
+      video = resetVideoElement();
+
       if (channel.type === 'm3u8' && Hls.isSupported()) {
         hls = new Hls();
         hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.currentTime = time;
-          video.play().catch(() => {});
+          video.play().catch(err => {
+            console.warn('Play failed:', err);
+          });
         });
       } else {
         video.src = url;
         video.addEventListener('loadeddata', function handler() {
           video.removeEventListener('loadeddata', handler);
           video.currentTime = time;
-          video.play().catch(() => {});
+          video.play().catch(err => {
+            console.warn('Play failed:', err);
+          });
         });
       }
     }
 
-    function syncPlayback() {
+    function hideLoaderOnce() {
+      if (!loaderHidden && video.readyState >= 3 && !video.paused) {
+        loaderOverlay.style.display = 'none';
+        loaderHidden = true;
+        console.log('✅ Loader hidden');
+      }
+    }
+
+    function syncPlaybackOnce() {
       const { index, time } = getPlaybackPosition(channel);
       if (index !== currentVideoIndex) {
         currentVideoIndex = index;
         loadStream(index, time);
-      } else if (Math.abs(video.currentTime - time) > 2) {
+      } else if (Math.abs(video.currentTime - time) > 3) {
         video.currentTime = time;
       }
     }
 
-    // ✅ Mute/unmute toggle with persistence
+    // ✅ Always start muted
+    video.muted = true;
+    muteButton.textContent = '🔇';
+
+    // ✅ Unmute allowed only after user interaction
     muteButton.addEventListener('click', () => {
-      isMuted = !isMuted;
-      localStorage.setItem('mstvMuted', isMuted);  // save state
-      video.muted = isMuted;
-      muteButton.textContent = isMuted ? '🔇' : '🔊';
+      video.muted = !video.muted;
+      muteButton.textContent = video.muted ? '🔇' : '🔊';
 
       if (!video.paused) {
-        video.play().catch(() => {});
+        video.play().catch(err => console.warn('Play after unmute failed:', err));
       }
     });
 
-    // ✅ Apply mute state on load
-    video.muted = isMuted;
-    muteButton.textContent = isMuted ? '🔇' : '🔊';
-
-    syncPlayback();
-    setInterval(syncPlayback, 1000);
+    // ⬅️ Kick off playback
+    syncPlaybackOnce();
   </script>
 </body>
 </html>
