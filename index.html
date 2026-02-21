@@ -1,239 +1,28 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>MSTV Pseudo Live Test</title>
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      background: black;
-      height: 100%;
-      overflow: hidden;
-    }
-
-    #videoContainer {
-      position: relative;
-      width: 100%;
-      height: 100%;
-    }
-
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    #muteButton {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.5);
-      color: white;
-      font-size: 1.5em;
-      padding: 5px 10px;
-      border-radius: 50%;
-      cursor: pointer;
-      z-index: 10;
-    }
-
-    #loaderOverlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.85);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 9;
-      color: gold;
-      font-family: sans-serif;
-      font-size: 1.2em;
-      pointer-events: none;
-    }
-
-    .spinner {
-      border: 6px solid rgba(255, 215, 0, 0.3);
-      border-top: 6px solid gold;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Stream Player</title>
+    <style>
+        body { font-family: sans-serif; background-color: #1a1a1a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .video-container { position: relative; width: 90%; max-width: 800px; padding-bottom: 56.25%; height: 0; overflow: hidden; border: 2px solid #444; border-radius: 8px; }
+        .video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        h1 { margin-bottom: 20px; font-size: 1.5rem; }
+    </style>
 </head>
 <body>
-  <div id="videoContainer">
-    <video id="videoPlayer" autoplay playsinline muted></video>
-    <span id="muteButton">🔇</span>
 
-    <div id="loaderOverlay">
-      <div class="spinner"></div>
-      <div>Please wait, loading...</div>
+    <h1>Sony TV HD - Live Stream</h1>
+
+    <div class="video-container">
+        <iframe 
+            src="https://tulnit.com/live/sony-tv-hd/" 
+            frameborder="0" 
+            allow="autoplay; encrypted-media; fullscreen" 
+            allowfullscreen>
+        </iframe>
     </div>
-  </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-  <script>
-    let hls = null;
-    let loaderHidden = false;
-    const videoContainer = document.getElementById('videoContainer');
-    let video = document.getElementById('videoPlayer');
-    const loaderOverlay = document.getElementById('loaderOverlay');
-    const muteButton = document.getElementById('muteButton');
-    let seekTimeout = null;
-
-    const channel = {
-      type: "m3u8",
-      durations: [8445], // video length in seconds
-      urls: ["https://f9rw3r.cfglobalcdn.com/silverlight/secip/113295/133612/7G88vE3vld5wr-2sGAQcSA/MTIwLjIxLjc5LjI0OA==/1755633930/hls-vod-s001/flv/api/files/videos/2025/06/30/1751291507rj0lw.mp4.m3u8"
-      ]
-    };
-
-    let currentVideoIndex = -1;
-
-    function getPlaybackPosition(channel) {
-      const total = channel.durations.reduce((a, b) => a + b, 0);
-      const now = Math.floor(Date.now() / 1000) % total;
-      let offset = 0;
-      for (let i = 0; i < channel.durations.length; i++) {
-        if (now < offset + channel.durations[i]) {
-          return { index: i, time: now - offset };
-        }
-        offset += channel.durations[i];
-      }
-      return { index: 0, time: 0 };
-    }
-
-    function resetVideoElement() {
-      const newVideo = document.createElement('video');
-      newVideo.id = 'videoPlayer';
-      newVideo.autoplay = true;
-      newVideo.playsInline = true;
-      newVideo.muted = true;
-      newVideo.style.width = "100%";
-      newVideo.style.height = "100%";
-      newVideo.style.objectFit = "cover";
-      videoContainer.replaceChild(newVideo, video);
-      video = newVideo;
-
-      ['canplay', 'playing', 'timeupdate'].forEach(evt => {
-        video.addEventListener(evt, hideLoaderOnce);
-      });
-
-      monitorSeek(); // Attach seek-locking
-
-      return video;
-    }
-
-    function loadStream(index, time) {
-      const url = channel.urls[index];
-      if (hls) {
-        hls.destroy();
-        hls = null;
-      }
-
-      loaderHidden = false;
-      loaderOverlay.style.display = 'flex';
-      video = resetVideoElement();
-
-      if (channel.type === 'm3u8' && Hls.isSupported()) {
-        hls = new Hls();
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.currentTime = time;
-          video.play().catch(err => console.warn('Play failed:', err));
-        });
-      } else {
-        video.src = url;
-        video.addEventListener('loadeddata', function handler() {
-          video.removeEventListener('loadeddata', handler);
-          video.currentTime = time;
-          video.play().catch(err => console.warn('Play failed:', err));
-        });
-      }
-
-      video.onended = () => {
-        syncPlaybackOnce();
-      };
-    }
-
-    function hideLoaderOnce() {
-      if (!loaderHidden && video.readyState >= 3 && !video.paused) {
-        loaderOverlay.style.display = 'none';
-        loaderHidden = true;
-        console.log('✅ Loader hidden');
-      }
-    }
-
-    function syncPlaybackOnce() {
-      const { index, time } = getPlaybackPosition(channel);
-      if (index !== currentVideoIndex) {
-        currentVideoIndex = index;
-        loadStream(index, time);
-      } else if (Math.abs(video.currentTime - time) > 3) {
-        video.currentTime = time;
-      }
-    }
-
-    // 🧠 Drift-corrected sync every 5 seconds
-    (function driftCorrectedLoop() {
-      syncPlaybackOnce();
-      const interval = 5000;
-      const now = Date.now();
-      const nextTick = interval - (now % interval);
-      setTimeout(driftCorrectedLoop, nextTick);
-    })();
-
-    // 🔊 Mute toggle
-    video.muted = true;
-    muteButton.textContent = '🔇';
-    muteButton.addEventListener('click', () => {
-      video.muted = !video.muted;
-      muteButton.textContent = video.muted ? '🔇' : '🔊';
-      if (!video.paused) {
-        video.play().catch(err => console.warn('Play after unmute failed:', err));
-      }
-    });
-
-    // ⏩⏪ Seek-locking logic
-    function monitorSeek() {
-      video.addEventListener('seeking', () => {
-        clearTimeout(seekTimeout);
-        const { time: liveTime } = getPlaybackPosition(channel);
-        const currentTime = video.currentTime;
-        const diff = currentTime - liveTime;
-
-        console.log(`User seeking: diff = ${diff.toFixed(2)}s`);
-
-        if (diff > 3) {
-          // Too far forward — snap immediately
-          console.log('🔁 Seeking too far ahead — snapping back to live');
-          video.currentTime = liveTime;
-        } else if (diff < -3) {
-          // Rewind — allow temporary delay
-          console.log('⏪ Rewind detected — will snap back after delay');
-          seekTimeout = setTimeout(() => {
-            console.log('🔁 Returning to live after rewind');
-            video.currentTime = getPlaybackPosition(channel).time;
-          }, 10000); // 10 seconds
-        }
-      });
-    }
-
-    // ⬅️ Start everything
-    syncPlaybackOnce();
-  </script>
 </body>
 </html>
